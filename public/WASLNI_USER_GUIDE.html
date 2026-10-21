@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>دليل منصة وصلني للعملاء | MOESSO_USERGUIDE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #3730a3;
+      --accent: #10b981;
+      --accent-gold: #f59e0b;
+      --bg-dark: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #050811;
+      color: var(--text-main);
+      line-height: 1.6;
+      direction: rtl;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Print & Export Bar */
+    .top-actions-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(11, 15, 25, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #1f2937;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 960px;
+      margin: 0 auto 20px auto;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .btn-print {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 800;
+      font-family: 'Cairo', sans-serif;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s;
+    }
+    .btn-print:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+    }
+
+    .btn-whatsapp {
+      background: #059669;
+      color: white;
+      text-decoration: none;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Page Container */
+    .page-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 16px 40px 16px;
+    }
+
+    .doc-page {
+      background: #0c111d;
+      border: 1px solid #1e293b;
+      border-radius: 24px;
+      padding: 40px 48px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      min-height: 1120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Subtle decorative elements */
+    .doc-page::before {
+      content: "";
+      position: absolute;
+      top: -120px;
+      left: -120px;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(79, 70, 229, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .doc-page::after {
+      content: "";
+      position: absolute;
+      bottom: -100px;
+      right: -100px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Header & Footer */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 28px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #4f46e5, #9333ea);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 900;
+      color: white;
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .guide-tag {
+      background: rgba(79, 70, 229, 0.15);
+      border: 1px solid rgba(79, 70, 229, 0.35);
+      color: #a5b4fc;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 18px;
+      border-top: 1px solid #1e293b;
+      margin-top: 28px;
+      font-size: 11px;
+      color: #64748b;
+      position: relative;
+      z-index: 2;
+    }
+
+    .page-num {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-weight: 800;
+    }
+
+    /* Content Typography & Elements */
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.28);
+      color: #fbbf24;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .main-title {
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.3;
+      margin-bottom: 10px;
+    }
+
+    .lead-text {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .highlight-card {
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.12), rgba(16, 185, 129, 0.08));
+      border: 1px solid rgba(79, 70, 229, 0.25);
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 24px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .feature-box {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .icon-indigo { background: rgba(79, 70, 229, 0.2); color: #818cf8; }
+    .icon-emerald { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .icon-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .icon-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+
+    .feature-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .feature-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    /* Step Cards */
+    .step-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 18px;
+      position: relative;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 900;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step-text {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    .step-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    /* Package Cards Table */
+    .package-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 18px 14px;
+      text-align: center;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .package-card.popular {
+      border-color: #6366f1;
+      background: linear-gradient(180deg, rgba(79, 70, 229, 0.15), rgba(17, 24, 39, 0.9));
+      box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);
+    }
+
+    .pkg-popular-tag {
+      position: absolute;
+      top: -10px;
+      right: 50%;
+      transform: translateX(50%);
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: white;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 10px;
+      border-radius: 12px;
+      white-space: nowrap;
+    }
+
+    .pkg-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .pkg-price {
+      font-size: 26px;
+      font-weight: 900;
+      color: #818cf8;
+      margin: 8px 0;
+    }
+
+    .pkg-price small {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .pkg-features {
+      list-style: none;
+      text-align: right;
+      font-size: 11px;
+      color: #cbd5e1;
+      line-height: 1.7;
+      margin: 12px 0;
+      padding-top: 10px;
+      border-top: 1px solid #1f2937;
+    }
+
+    .pkg-features li::before {
+      content: "✓ ";
+      color: #10b981;
+      font-weight: 800;
+    }
+
+    /* Security callout */
+    .security-notice {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .security-notice-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .security-notice-text {
+      font-size: 11px;
+      color: #fca5a5;
+      line-height: 1.5;
+    }
+
+    /* Print Formatting */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+      }
+      .top-actions-bar {
+        display: none !important;
+      }
+      .page-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .doc-page {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+        color: #0f172a !important;
+        page-break-after: always !important;
+        margin-bottom: 0 !important;
+        border-radius: 0 !important;
+        min-height: 100vh !important;
+        padding: 25mm 20mm !important;
+      }
+      .main-title, .brand-title, .feature-title, .step-title, .pkg-name {
+        color: #0f172a !important;
+      }
+      .lead-text, .brand-sub, .feature-desc, .step-text, .page-footer {
+        color: #475569 !important;
+      }
+      .feature-box, .step-card, .package-card, .highlight-card {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .pkg-price {
+        color: #4338ca !important;
+      }
+      .page-header, .page-footer {
+        border-color: #e2e8f0 !important;
+      }
+      .page-num {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+      }
+    }
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 768px) {
+      body {
+        font-size: 13px;
+      }
+      .top-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 0 0 14px 14px;
+        margin-bottom: 14px;
+      }
+      .top-actions-bar > div:last-child {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .btn-print, .btn-whatsapp {
+        justify-content: center;
+        padding: 9px 12px;
+        font-size: 12px;
+      }
+      .page-container {
+        padding: 0 10px 30px 10px;
+      }
+      .doc-page {
+        padding: 20px 14px;
+        border-radius: 18px;
+        margin-bottom: 16px;
+        min-height: auto;
+      }
+      .doc-page::before, .doc-page::after {
+        display: none;
+      }
+      .page-header {
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+      }
+      .logo-badge {
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+      }
+      .brand-title {
+        font-size: 16px;
+      }
+      .brand-sub {
+        font-size: 10px;
+      }
+      .guide-tag {
+        font-size: 10px;
+        padding: 4px 10px;
+      }
+      .main-title {
+        font-size: 20px !important;
+        line-height: 1.35 !important;
+      }
+      .lead-text {
+        font-size: 12px !important;
+        margin-bottom: 16px;
+      }
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+      .grid-4 {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+      }
+      .highlight-card {
+        padding: 14px !important;
+        margin-bottom: 14px !important;
+      }
+      .step-card {
+        padding: 12px !important;
+        gap: 10px !important;
+      }
+      .step-number {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+      }
+      .step-title {
+        font-size: 12px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
+      }
+      .step-text {
+        font-size: 11px !important;
+      }
+      .package-card {
+        padding: 14px 10px !important;
+      }
+      .pkg-price {
+        font-size: 22px !important;
+      }
+      div[style*="repeat(4, 1fr)"] {
+        grid-template-columns: 1fr 1fr !important;
+      }
+      div[style*="justify-content: space-between"][style*="align-items: center"] {
+        flex-direction: column !important;
+        gap: 8px !important;
+        text-align: center !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Bar (Hidden during Print / PDF Export) -->
+  <div class="top-actions-bar">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 20px;">📘</span>
+      <div>
+        <strong style="color: #ffffff; font-size: 14px; display: block;">دليل استخدام منصة وصلني للعملاء (PDF Guide)</strong>
+        <span style="color: #94a3b8; font-size: 11px;">ملف تعريفي جاهز للإرسال والطباعة للعملاء وأصحاب المتاجر</span>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button onclick="window.print()" class="btn-print">
+        <span>🖨️ حفظ وتنزيل كـ PDF</span>
+      </button>
+      <a href="https://wa.me/966558840806" target="_blank" class="btn-whatsapp">
+        <span>💬 واتساب الدعم المباشر</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="page-container">
+
+    <!-- =================================================================== -->
+    <!-- PAGE 1: الغلاف التعريفي الفاخر ونبذة المنصة والقيمة المضافة -->
+    <!-- =================================================================== -->
+    <section class="doc-page">
+      <div>
+        <!-- Header -->
+        <header class="page-header">
+          <div class="brand-logo">
+            <div class="logo-badge">و</div>
+            <div>
+              <h1 class="brand-title">منصة وصلني | WASLNI</h1>
+              <p class="brand-sub">المنصة الرائدة في التسويق والمحتوى الرقمي للمحلات التجارية</p>
+            </div>
+          </div>
+          <span class="guide-tag">MOESSO USER GUIDE 2026</span>
+        </header>
+
+        <!-- Hero Badge & Title -->
+        <div class="hero-badge">
+          <span>✨</span>
+          <span>دليل العميل التعريفي المعتمد • حلول رقمية فورية بدون تعقيد</span>
+        </div>
+
+        <h2 class="main-title">
+          شريكك التسويقي الأول لرفع مبيعات محلك وعلامتك التجارية
+        </h2>
+        <p class="lead-text">
+          تم تصميم منصة <strong>وصلني (Waslni)</strong> لتلبي احتياجات أصحاب المحلات والمتاجر المحلية في المملكة؛ حيث نوفر تصاميم إعلانية ومقاطع ريلز وفيديوهات ترويجية ترفع معدل التحويل والمبيعات مباشرة، بدون الحاجة إلى توظيف مسوقين برواتب باهظة أو التورط في عقود سنوية معقدة.
+        </p>
+
+        <!-- Highlight Card: Value Proposition -->
+        <div class="highlight-card">
+          <h3 style="font-size: 15px; font-weight: 800; color: #ffffff; margin-bottom: 8px;">
+            💎 لماذا تختار منصة وصلني لمحلك التجاري؟
+          </h3>
+          <p style="font-size: 12px; color: #cbd5e1; line-height: 1.7;">
+            نحن ندمج بين سرعة التسليم (خلال 24 إلى 48 ساعة فقط)، وجودة المخرجات الاحترافية، والأسعار الاقتصادية الشفافة التي تبدأ من <strong>99 ريال فقط</strong>. منتجاتك ومحلك سيظهران في منصات التواصل (إنستقرام، سناب شات، تيك توك) بمظهر يثق به الزبون ويحفزه على الشراء.
+          </p>
+        </div>
+
+        <!-- 4 Pillars Grid -->
+        <div class="grid-2">
+          <div class="feature-box">
+            <div class="feature-icon icon-indigo">⚡</div>
+            <h4 class="feature-title">تسليم سريع ومضمون</h4>
+            <p class="feature-desc">استلم تصاميمك ومقاطع الريلز الجاهزة خلال 24-48 ساعة لتبدأ حملتك الإعلانية دون أي تعطيل.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon icon-emerald">💰</div>
+            <h4 class="feature-title">باقات اقتصادية بدون عقود</h4>
+            <p class="feature-desc">ادفع فقط مقابل ما تطلبه؛ باقات ميسرة بدون اشتراكات إلزامية أو شروط جزائية.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon icon-amber">🎯</div>
+            <h4 class="feature-title">فهم عميق لسلوك الزبائن</h4>
+            <p class="feature-desc">تصاميم موجهة ومدروسة تناسب المتسوق السعودي وتركز على إبراز المنتج وزيادة المبيعات.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon icon-purple">🔄</div>
+            <h4 class="feature-title">تعديل مجاني وضمان الرضا</h4>
+            <p class="feature-desc">نلتزم معك بإجراء التعديلات المطلوبة حتى تصبح راضياً تماماً عن النتيجة النهائية قبل النشر.</p>
+          </div>
+        </div>
+
+        <!-- Target Sectors Grid -->
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 16px; margin-top: 14px;">
+          <h4 style="font-size: 13px; font-weight: 800; color: #f8fafc; margin-bottom: 8px;">
+            🏬 الأنشطة والمحلات التي نخدمها بامتياز:
+          </h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px;">
+            <span style="background: rgba(79, 70, 229, 0.15); color: #c7d2fe; padding: 4px 10px; border-radius: 8px;">👗 بوتيكات الملابس والعبايات</span>
+            <span style="background: rgba(245, 158, 11, 0.15); color: #fde68a; padding: 4px 10px; border-radius: 8px;">🧴 محلات العطور والبخور</span>
+            <span style="background: rgba(16, 185, 129, 0.15); color: #a7f3d0; padding: 4px 10px; border-radius: 8px;">🌸 محلات الورود والهدايا</span>
+            <span style="background: rgba(239, 68, 68, 0.15); color: #fecaca; padding: 4px 10px; border-radius: 8px;">☕ المطاعم والكافيهات</span>
+            <span style="background: rgba(168, 85, 247, 0.15); color: #e9d5ff; padding: 4px 10px; border-radius: 8px;">📱 محلات الإلكترونيات والجوالات</span>
+            <span style="background: rgba(14, 165, 233, 0.15); color: #bae6fd; padding: 4px 10px; border-radius: 8px;">✨ كافة الأنشطة والمشاريع المنزلية المخصصة</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="page-footer">
+        <span>وصلني للخدمات الرقمية والتسويقية © 2026 • جميع الحقوق محفوظة</span>
+        <span class="page-num">صفحة 1 من 4</span>
+      </footer>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 2: باقات المنصة وحاسبة الأسعار والعروض الترويجية -->
+    <!-- =================================================================== -->
+    <section class="doc-page">
+      <div>
+        <header class="page-header">
+          <div class="brand-logo">
+            <div class="logo-badge">و</div>
+            <div>
+              <h2 class="brand-title">باقات وصلني والأسعار</h2>
+              <p class="brand-sub">باقات ترويجية مدروسة لتلائم ميزانيات المحلات الناشئة والقائمة</p>
+            </div>
+          </div>
+          <span class="guide-tag">PACKAGES & PRICING</span>
+        </header>
+
+        <div class="hero-badge">
+          <span>🏷️</span>
+          <span>شفافية كاملة في الأسعار والمخرجات • لا توجد أي رسوم خفية</span>
+        </div>
+
+        <h3 class="main-title" style="font-size: 22px;">
+          اختر الباقة المناسبة لمحلك التجاري
+        </h3>
+        <p class="lead-text" style="margin-bottom: 20px;">
+          نوفر أربع باقات رئيسية تغطي كافة متطلبات النشر وصناعة المحتوى التفاعلي لجذب الزبائن، مع إمكانية تفصيل باقة مخصصة بحاسبة الأسعار:
+        </p>
+
+        <!-- 4 Ready Packages Grid -->
+        <div class="grid-4" style="margin-bottom: 24px;">
+          
+          <!-- Package 1: Launch -->
+          <div class="package-card popular">
+            <span class="pkg-popular-tag">🔥 الأكثر طلباً</span>
+            <div>
+              <h4 class="pkg-name">باقة الانطلاق</h4>
+              <p style="font-size: 10px; color: #94a3b8;">للمحلات التي تبدأ أول خطوة ترويجية</p>
+              <div class="pkg-price">99 <small>ر.س</small></div>
+            </div>
+            <ul class="pkg-features">
+              <li>3 بوستات إعلانية احترافية</li>
+              <li>كتابة نصوص تسويقية بيعية</li>
+              <li>مقاسات جاهزة للإنستقرام والسناب</li>
+              <li>تسليم خلال 24 ساعة فقط</li>
+              <li>تعديل مجاني مضمون</li>
+            </ul>
+            <div style="font-size: 10px; color: #a5b4fc; font-weight: 700;">تسليم فوري ومباشر</div>
+          </div>
+
+          <!-- Package 2: Growth -->
+          <div class="package-card">
+            <div>
+              <h4 class="pkg-name">باقة النمو</h4>
+              <p style="font-size: 10px; color: #94a3b8;">لمضاعفة التفاعل وتجديد العروض</p>
+              <div class="pkg-price">189 <small>ر.س</small></div>
+            </div>
+            <ul class="pkg-features">
+              <li>6 بوستات إعلانية عالية الجودة</li>
+              <li>1 فيديو ريلز تسويقي متحرك</li>
+              <li>صياغة عروض وكوبونات الخصم</li>
+              <li>تسليم خلال 48 ساعة</li>
+              <li>مراجعة كاملة للمسودات</li>
+            </ul>
+            <div style="font-size: 10px; color: #94a3b8;">خيار مثالي للعروض الأسبوعية</div>
+          </div>
+
+          <!-- Package 3: Excellence -->
+          <div class="package-card">
+            <div>
+              <h4 class="pkg-name">باقة التميز</h4>
+              <p style="font-size: 10px; color: #94a3b8;">تغطية إعلانية متكاملة وشاملة</p>
+              <div class="pkg-price">349 <small>ر.س</small></div>
+            </div>
+            <ul class="pkg-features">
+              <li>12 تصميم بوست وستوري</li>
+              <li>2 فيديو ريلز / تيك توك مونتاج احترافي</li>
+              <li>منيو رقمي أو كتالوج باركود QR</li>
+              <li>كتابة خطة محتوى متكاملة</li>
+              <li>تسليم مجدول حسب رغبتك</li>
+            </ul>
+            <div style="font-size: 10px; color: #94a3b8;">شريك تسويقي متكامل لمحلك</div>
+          </div>
+
+          <!-- Package 4: Dominance / Custom -->
+          <div class="package-card">
+            <div>
+              <h4 class="pkg-name">باقة مخصصة</h4>
+              <p style="font-size: 10px; color: #94a3b8;">فصّل باقتك بالحاسبة التفاعلية</p>
+              <div class="pkg-price">حسب <small>الطلب</small></div>
+            </div>
+            <ul class="pkg-features">
+              <li>حدد عدد التصاميم التي تريدها</li>
+              <li>حدد عدد مقاطع الفيديو بدقة</li>
+              <li>إضافة صفحات هبوط أو متجر إلكتروني</li>
+              <li>حساب السعر فورياً أمامك</li>
+              <li>خصومات تصاعدية على الكميات</li>
+            </ul>
+            <div style="font-size: 10px; color: #94a3b8;">حاسبة أسعار فورية بالموقع</div>
+          </div>
+
+        </div>
+
+        <!-- Feature Box: Discount Calculator -->
+        <div class="highlight-card" style="margin-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="font-size: 14px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+              <span>🎟️ أكواد الخصم وتخفيضات المحلات المستمرة</span>
+            </h4>
+            <span style="font-size: 11px; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 3px 10px; border-radius: 6px; font-weight: 800;">كوبونات حصرية</span>
+          </div>
+          <p style="font-size: 12px; color: #94a3b8; line-height: 1.6;">
+            يقدم فريق وصلني أكواد خصم دورية لعملائنا المسجلين (مثل <strong>WASLNI20</strong>)، ويمكنك إدخال كود الخصم أثناء استعراض تفاصيل أي باقة ليتم احتساب السعر قبل الخصم وبعد الخصم وتوفير المبلغ فورياً.
+          </p>
+        </div>
+
+      </div>
+
+      <footer class="page-footer">
+        <span>وصلني للخدمات الرقمية والتسويقية © 2026 • جميع الحقوق محفوظة</span>
+        <span class="page-num">صفحة 2 من 4</span>
+      </footer>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 3: دليل إنشاء الحساب وتسجيل الدخول الآمن (معايير الأمان) -->
+    <!-- =================================================================== -->
+    <section class="doc-page">
+      <div>
+        <header class="page-header">
+          <div class="brand-logo">
+            <div class="logo-badge">و</div>
+            <div>
+              <h2 class="brand-title">دليل الحساب وتسجيل الدخول الآمن</h2>
+              <p class="brand-sub">منظومة حماية متقدمة ومطابقة لأعلى معايير الأمان والتشفير</p>
+            </div>
+          </div>
+          <span class="guide-tag">SECURITY & AUTHENTICATION</span>
+        </header>
+
+        <div class="hero-badge">
+          <span>🛡️</span>
+          <span>أمان وحماية بيانات المحل • تشفير كامل لكلمات المرور</span>
+        </div>
+
+        <h3 class="main-title" style="font-size: 22px;">
+          كيف تنشئ حساباً وتسجل دخولك في 3 خطوات بسيطة؟
+        </h3>
+        <p class="lead-text" style="margin-bottom: 20px;">
+          يحفظ لك الحساب في منصة وصلني سجل طلباتك السابقة، وفواتير السداد، وحالة متابعة تصاميمك في أي وقت:
+        </p>
+
+        <!-- Steps to Register -->
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>الضغط على "تسجيل الدخول / حساب جديد" بأعلى الصفحة</span>
+              <span class="step-badge">واجهة سهلة</span>
+            </div>
+            <p class="step-text">
+              من الشريط العلوي للموقع، اضغط على زر "تسجيل الدخول / حساب جديد"، ثم اختر تبويب "إنشاء حساب جديد".
+            </p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>تعبئة بيانات المحل والنشاط التجاري ورقم الجوال</span>
+              <span class="step-badge">بيانات مطلوبة</span>
+            </div>
+            <p class="step-text">
+              أدخل اسمك الكريم، اسم المحل التجاري، رقم جوال الواتساب (مثال: 0558840806)، وحدد نشاط محلك (ملابس، عطور، مطاعم، ورود، أو اختر <strong>"أخرى" واكتب نشاطك التجاري المخصص</strong> في الخانة المخصصة).
+            </p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>تعيين كلمة المرور بمعايير الأمان الصارمة (8 خانات كحد أدنى)</span>
+              <span class="step-badge">حماية 100%</span>
+            </div>
+            <p class="step-text">
+              لحماية بيانات حسابك وطلباتك، يشترط النظام كلمة مرور آمنة لا تقل عن 8 خانات تتضمن أحرفاً وأرقاماً. يتم تشفير كلمة المرور فوراً ولا يمكن لأحد الاطلاع عليها.
+            </p>
+          </div>
+        </div>
+
+        <!-- Security Features Box -->
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 18px; padding: 20px; margin-top: 18px;">
+          <h4 style="font-size: 14px; font-weight: 800; color: #ffffff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>🔐 منظومة الأمان المدمجة في حسابك:</span>
+          </h4>
+          <div class="grid-2" style="margin-bottom: 0;">
+            <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+              <strong style="color: #34d399; display: block; margin-bottom: 2px;">• التحقق الثنائي برمز أمان رباعي (2FA):</strong>
+              يصل كود أمان رباعي لتأكيد عمليات الدخول والتحقق من هوية صاحب الحساب.
+            </div>
+            <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+              <strong style="color: #fbbf24; display: block; margin-bottom: 2px;">• الحماية من هجمات التكرار (Lockout):</strong>
+              عند إدخال الرمز خطأ مرتين يتم إيقاف تسجيل الدخول لمدة 5 دقائق لحماية حسابك من أي محاولات اختراق.
+            </div>
+            <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+              <strong style="color: #818cf8; display: block; margin-bottom: 2px;">• عدم حفظ الرموز والبيانات في المتصفح:</strong>
+              يتم مسح حقول اسم المستخدم وكلمة المرور فور تسجيل الخروج لضمان عدم بقائها معبأة تلقائياً.
+            </div>
+            <div style="font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+              <strong style="color: #f43f5e; display: block; margin-bottom: 2px;">• استعادة كلمة المرور عبر فريق الدعم:</strong>
+              في حال نسيان كلمة المرور، يمكنك الضغط على "نسيت كلمة المرور" للتواصل مباشرة مع الموظف المسؤول لإعادة تعيينها.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <footer class="page-footer">
+        <span>وصلني للخدمات الرقمية والتسويقية © 2026 • جميع الحقوق محفوظة</span>
+        <span class="page-num">صفحة 3 من 4</span>
+      </footer>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- PAGE 4: آلية إنشاء الطلب وتتبع التنفيذ وتأكيد التحويل البنكي -->
+    <!-- =================================================================== -->
+    <section class="doc-page">
+      <div>
+        <header class="page-header">
+          <div class="brand-logo">
+            <div class="logo-badge">و</div>
+            <div>
+              <h2 class="brand-title">آلية إنشاء الطلب ومتابعة التنفيذ</h2>
+              <p class="brand-sub">رحلة طلبك خطوة بخطوة من الفكرة والمواصفات حتى الاستلام النهائي</p>
+            </div>
+          </div>
+          <span class="guide-tag">ORDER & WORKFLOW</span>
+        </header>
+
+        <div class="hero-badge">
+          <span>🚀</span>
+          <span>منظومة متكاملة • تتبع فوري لمراحل التصميم والمونتاج والتسليم</span>
+        </div>
+
+        <h3 class="main-title" style="font-size: 22px;">
+          كيف تطلب الخدمة وتتابع تنفيذها وتستلم عملك؟
+        </h3>
+
+        <!-- Order Workflow Steps -->
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>اختيار الباقة وتحديد مواصفات الطلب</span>
+              <span class="step-badge">الخطوة الأولى</span>
+            </div>
+            <p class="step-text">
+              اضغط على "طلب خدمة" أو اختر أي باقة تناسبك، ثم حدد نشاط محلك (أو اختر "نشاط آخر" واكتبه)، وأدخل اسمك الكريم واسم المحل ورقم الجوال والملاحظات التفصيلية حول ما ترغب بتصميمه (لا يمكن إرسال طلب فارغ).
+            </p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>توليد كود التتبع والتحويل المباشر للواتساب</span>
+              <span class="step-badge">محادثة موثقة</span>
+            </div>
+            <p class="step-text">
+              يولد النظام رقم طلب رسمي (مثل: <strong>WS-1024</strong>)، وينقلك بنقرة واحدة لمحادثة خدمة العملاء على الواتساب مع رسالة جاهزة تتضمن كافة تفاصيل طلبك، لتقوم بإرسال صور وفيديوهات منتجاتك بالدردشة بكل أريحية.
+            </p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>التحويل البنكي وتوثيق الإيصال فورياً</span>
+              <span class="step-badge">سداد موثق</span>
+            </div>
+            <p class="step-text">
+              يقوم الموظف بتزويدك ببيانات الحساب البنكي، وبمجرد رفعك لإيصال التحويل، يضغط الموظف "تم استلام المبلغ والتحويل كامل" لتوثيقها فوراً للمدير العام واعتمادها مالياً، ويصلك إشعار بالاعتماد.
+            </p>
+          </div>
+        </div>
+
+        <!-- Live Tracker Feature -->
+        <div class="highlight-card" style="margin-top: 14px; margin-bottom: 16px;">
+          <h4 style="font-size: 13px; font-weight: 800; color: #ffffff; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+            <span>🔍 تتبع مراحل التنفيذ الحية من نافذة "تتبع حالة الطلب":</span>
+          </h4>
+          <p style="font-size: 11px; color: #cbd5e1; line-height: 1.6; margin-bottom: 10px;">
+            يمكنك في أي لحظة الدخول للموقع وإدخال رقم طلبك (مثال: WS-1024) لرؤية شريط الإنجاز الفعلي لطلبك:
+          </p>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 10px;">
+            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); padding: 8px 4px; border-radius: 8px; color: #34d399; font-weight: 700;">
+              1. استلام الطلب والمواد ✓
+            </div>
+            <div style="background: rgba(79, 70, 229, 0.2); border: 1px solid rgba(79, 70, 229, 0.4); padding: 8px 4px; border-radius: 8px; color: #a5b4fc; font-weight: 700;">
+              2. قيد التنفيذ والمونتاج ⚙️
+            </div>
+            <div style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); padding: 8px 4px; border-radius: 8px; color: #fde68a; font-weight: 700;">
+              3. إرسال المسودة للمراجعة 👁️
+            </div>
+            <div style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); padding: 8px 4px; border-radius: 8px; color: #34d399; font-weight: 700;">
+              4. اعتماد العمل والتسليم 🎉
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Box -->
+        <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong style="color: #ffffff; font-size: 13px; display: block;">📞 فريق خدمة العملاء والدعم الفني</strong>
+            <span style="color: #94a3b8; font-size: 11px;">متواجدون لخدمتكم يومياً للرد على استفساراتكم والبدء في طلباتكم</span>
+          </div>
+          <div style="font-family: monospace; font-size: 13px; font-weight: 800; color: #34d399; background: rgba(16, 185, 129, 0.15); padding: 6px 14px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3);" dir="ltr">
+            +966 55 884 0806
+          </div>
+        </div>
+
+      </div>
+
+      <footer class="page-footer">
+        <span>وصلني للخدمات الرقمية والتسويقية © 2026 • جميع الحقوق محفوظة</span>
+        <span class="page-num">صفحة 4 من 4</span>
+      </footer>
+    </section>
+
+  </div>
+
+</body>
+</html>
