@@ -13,7 +13,6 @@ import {
   ShieldCheck, 
   FileText,
   Eye,
-  EyeOff,
   LogOut,
   Video,
   CheckCircle,
@@ -25,11 +24,9 @@ import {
   Key,
   Layers,
   UserPlus,
-  UserCheck,
   Wrench,
   Power,
   AlertTriangle,
-  Lock,
   ShieldAlert,
   Search,
   Copy
@@ -63,7 +60,6 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   const [newEmpName, setNewEmpName] = useState('');
   const [newEmpUsername, setNewEmpUsername] = useState('');
   const [newEmpPassword, setNewEmpPassword] = useState('');
-  const [newEmpRequire2FA, setNewEmpRequire2FA] = useState(false);
   const [newEmpPermissions, setNewEmpPermissions] = useState({
     canManageOrders: true,
     canManagePackages: false,
@@ -100,6 +96,8 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   const [newMediaCategory, setNewMediaCategory] = useState('fashion');
   const [newMediaType, setNewMediaType] = useState('image');
   const [newMediaUrl, setNewMediaUrl] = useState('');
+  const [newMediaFile, setNewMediaFile] = useState(null);
+  const [mediaSaving, setMediaSaving] = useState(false);
   const [newMediaClient, setNewMediaClient] = useState('');
   const [newMediaHighlight, setNewMediaHighlight] = useState('');
 
@@ -128,7 +126,6 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   // Reset Customer Password Modal State
   const [selectedCustomerForReset, setSelectedCustomerForReset] = useState(null);
   const [newCustomerPasswordInput, setNewCustomerPasswordInput] = useState('');
-  const [showCustomerPasswordsMap, setShowCustomerPasswordsMap] = useState({});
 
   // Order Search & Filter State
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -146,9 +143,6 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   const [manualAmount, setManualAmount] = useState(99);
   const [manualStatus, setManualStatus] = useState('pending_payment');
   const [manualNotes, setManualNotes] = useState('');
-
-  // Show Employee Passwords toggle map
-  const [showEmpPasswordsMap, setShowEmpPasswordsMap] = useState({});
 
   const showToast = (msg) => {
     setNotification(msg);
@@ -170,14 +164,14 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
     setMaintenanceReturn(maintenance.estimatedReturn || '');
   };
 
-  const handleSaveManualOrder = (e) => {
+  const handleSaveManualOrder = async (e) => {
     e.preventDefault();
     if (!manualCustomerName.trim() || !manualCustomerPhone.trim()) {
       alert('يرجى إدخال اسم العميل ورقم جوال الواتساب');
       return;
     }
 
-    db.createManualOrder({
+    const result = await db.createManualOrder({
       orderNumber: manualOrderNumber,
       securityCode: manualSecurityCode,
       customerName: manualCustomerName,
@@ -190,29 +184,13 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
       notes: manualNotes
     });
 
+    if (!result.success) {
+      showToast(result.message || 'تعذر حفظ الطلب في قاعدة البيانات.');
+      return;
+    }
     setOrders(db.getOrders(currentUser));
     setIsManualOrderModalOpen(false);
     showToast(`تم تسجيل واستيراد الطلب (${manualOrderNumber || 'الجديد'}) بنجاح وإدراجه في قائمة الطلبات! ✓`);
-  };
-
-  const handleCopyEmpCredentials = (emp) => {
-    const pwd = emp.plainHint || emp.password || 'Emp@2026';
-    const code = emp.securityCode || '2026';
-    const text = `بيانات دخول الموظف لمنصة وصلني:
-👤 الاسم: ${emp.name}
-🔑 اسم المستخدم / اليوزر: ${emp.phone}
-🔒 كلمة المرور: ${pwd}
-🔐 كود التحقق الأمني (2FA): ${code}
-🌐 رابط المنصة: ${window.location.origin}`;
-    navigator.clipboard.writeText(text);
-    showToast(`تم نسخ بيانات دخول الموظف (${emp.name}) بنجاح!`);
-  };
-
-  const togglePasswordVisibilityForEmp = (empId) => {
-    setShowEmpPasswordsMap(prev => ({
-      ...prev,
-      [empId]: !prev[empId]
-    }));
   };
 
   // Sync state whenever modal opens or currentUser updates
@@ -328,7 +306,7 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
 
     const res = await db.createEmployeeAccountByManager({
       name: newEmpName.trim(), username: newEmpUsername.trim(), password: newEmpPassword.trim(),
-      creatorName: currentUser.name, permissions: newEmpPermissions, require2FA: newEmpRequire2FA
+      creatorName: currentUser.name, permissions: newEmpPermissions
     });
 
     if (res.success) {
@@ -409,7 +387,7 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
 
   const handleConfirmDeleteOrder = async () => {
     if (!orderToDelete || !deletionCodeInput.trim()) {
-      setDeletionError('يرجى إدخال كود التحقق الأمني الرباعي');
+      setDeletionError('يرجى إدخال رمز التأكيد المكوّن من 6 أرقام.');
       return;
     }
 
@@ -457,8 +435,8 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   const handleFileUploadReceipt = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
-        alert('يرجى اختيار صورة لا يتجاوز حجمها 10 ميجابايت');
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+        alert('اختر إيصالًا بصيغة JPG أو PNG أو WebP لا يتجاوز 5 ميجابايت.');
         e.target.value = '';
         return;
       }
@@ -473,12 +451,15 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   const handleFileUploadPortfolio = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewMediaUrl(reader.result);
-        setNewMediaType('image');
-      };
-      reader.readAsDataURL(file);
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
+      if (!allowed.includes(file.type) || file.size > 50 * 1024 * 1024) {
+        alert('اختر صورة JPG أو PNG أو WebP أو GIF أو فيديو MP4/WebM بحجم لا يتجاوز 50 ميجابايت.');
+        e.target.value = '';
+        return;
+      }
+      setNewMediaFile(file);
+      setNewMediaType(file.type.startsWith('video/') ? 'video' : 'image');
+      setNewMediaUrl(file.name);
     }
   };
 
@@ -500,11 +481,17 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
       return;
     }
 
-    db.markOrderTransferredByEmployee(selectedOrderForTransfer.id, {
+    const result = await db.markOrderTransferredByEmployee(selectedOrderForTransfer.id, {
+      receiptSentToTelegram: true,
       employeeName: currentUser.name,
       notes: transferNotes || 'تم استلام المبلغ والتحويل البنكي بالكامل',
       packageId: selectedPackageId
     });
+
+    if (!result.success) {
+      alert(`${result.message}\nتم إرسال صورة الإيصال إلى Telegram، لكن لم تُحفظ حالة الطلب.`);
+      return;
+    }
 
     setOrders(db.getOrders(currentUser));
     setSelectedOrderForTransfer(null);
@@ -512,15 +499,23 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   };
 
   // 2. Manager Action: Final Financial Approval
-  const handleManagerApprove = (orderId) => {
-    db.approveOrderByManager(orderId);
+  const handleManagerApprove = async (orderId) => {
+    const result = await db.approveOrderByManager(orderId);
+    if (!result.success) {
+      showToast(result.message);
+      return;
+    }
     setOrders(db.getOrders(currentUser));
     showToast('تم الاعتماد المالي للطلب من المدير ✓');
   };
 
   // 3. Update Order Status
-  const handleStatusChange = (orderId, newStatus) => {
-    db.updateOrderStatus(orderId, newStatus);
+  const handleStatusChange = async (orderId, newStatus) => {
+    const result = await db.updateOrderStatus(orderId, newStatus);
+    if (!result.success) {
+      showToast(result.message);
+      return;
+    }
     setOrders(db.getOrders(currentUser));
     showToast('تم تحديث حالة الطلب بنجاح');
   };
@@ -556,27 +551,35 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
   };
 
   // 5. Visibility Controls (إخفاء وإظهار الأقسام)
-  const handleToggleCategory = (catId) => {
+  const handleToggleCategory = async (catId) => {
     const currentVal = categoryVisibility[catId] !== false;
-    db.toggleCategoryVisibility(catId, !currentVal);
+    const result = await db.toggleCategoryVisibility(catId, !currentVal);
+    if (!result.success) {
+      showToast(result.message);
+      return;
+    }
     reloadData();
     showToast(`تم ${!currentVal ? 'إظهار' : 'إخفاء'} القسم بنجاح في الموقع والخطط`);
   };
 
   // 6. Discount Codes Management
-  const handleCreateDiscountCode = (e) => {
+  const handleCreateDiscountCode = async (e) => {
     e.preventDefault();
     if (!newCodeName.trim() || !newCodeValue || Number(newCodeValue) <= 0) {
       alert('يرجى إدخال رمز الكود وقيمة خصم صحيحة أكبر من صفر');
       return;
     }
 
-    db.addDiscountCode({
+    const result = await db.addDiscountCode({
       code: newCodeName,
       type: newCodeType,
       value: newCodeValue,
       description: newCodeDesc
     });
+    if (!result.success) {
+      showToast(result.message);
+      return;
+    }
 
     setNewCodeName('');
     setNewCodeDesc('');
@@ -584,9 +587,13 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
     showToast('تم إنشاء كود الخصم الجديد بنجاح!');
   };
 
-  const handleDeleteDiscountCode = (code) => {
+  const handleDeleteDiscountCode = async (code) => {
     if (confirm(`هل أنت متأكد من حذف كود الخصم (${code})؟`)) {
-      db.deleteDiscountCode(code);
+      const result = await db.deleteDiscountCode(code);
+      if (!result.success) {
+        showToast(result.message);
+        return;
+      }
       reloadData();
       showToast('تم حذف كود الخصم');
     }
@@ -620,13 +627,6 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
     } else {
       alert(res.message);
     }
-  };
-
-  const togglePasswordVisibilityForUser = (userId) => {
-    setShowCustomerPasswordsMap(prev => ({
-      ...prev,
-      [userId]: !prev[userId]
-    }));
   };
 
   // Categories list for visibility control
@@ -1666,12 +1666,6 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                             كلمة المرور محفوظة كتجزئة ولا يمكن عرضها؛ يمكن إعادة تعيينها عند الحاجة.
                           </div>
 
-                          {/* Security Code */}
-                          <div>
-                            <span className="text-slate-500">كود الأمان الرباعي: </span>
-                            <strong className="text-amber-400 font-mono">{cust.securityCode || '3184'}</strong>
-                          </div>
-
                           {/* Reset Button */}
                           <div className="flex justify-end">
                             <button
@@ -1821,13 +1815,13 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                         <div className="flex gap-2 pt-2 border-t border-slate-800">
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               const featuresArray = pkgEditFeaturesText
                                 .split('\n')
                                 .map(f => f.trim())
                                 .filter(Boolean);
 
-                              db.updatePackage(pkg.id, {
+                              const result = await db.updatePackage(pkg.id, {
                                 name: pkgEditName,
                                 subtitle: pkgEditSubtitle,
                                 price: Number(pkgEditPrice),
@@ -1837,6 +1831,10 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                                 terms: pkgEditTerms,
                                 features: featuresArray
                               });
+                              if (!result.success) {
+                                showToast(result.message);
+                                return;
+                              }
                               setEditingPackageId(null);
                               reloadData();
                               showToast(`تم حفظ وتحديث تفاصيل (${pkgEditName}) بنجاح!`);
@@ -1941,36 +1939,49 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
             <div className="space-y-6">
               
               {/* Add New Media Form with Local File Upload */}
-              <form onSubmit={(e) => {
+              <form onSubmit={async (e) => {
                 e.preventDefault();
                 if (!newMediaTitle.trim() || !newMediaUrl.trim()) {
                   alert('يرجى إدخال عنوان ورابط المادة أو رفعها');
                   return;
                 }
+                setMediaSaving(true);
+                try {
                 const catNameMap = {
                   fashion: 'ملابس وأزياء',
                   flowers: 'ورود وهدايا',
                   perfumes: 'عطور وبخور',
                   cafes: 'مطاعم وكافيهات'
                 };
-                db.addPortfolioItem({
+                const mediaUrl = newMediaFile ? await db.uploadPortfolioAsset(newMediaFile) : newMediaUrl.trim();
+                const result = await db.addPortfolioItem({
                   title: newMediaTitle.trim(),
                   category: newMediaCategory,
                   categoryName: catNameMap[newMediaCategory] || 'عام',
                   mediaType: newMediaType,
-                  mediaUrl: newMediaUrl,
-                  thumbnail: newMediaUrl,
+                  mediaUrl,
+                  thumbnail: mediaUrl,
                   clientType: newMediaClient.trim() || 'متجر تجاري',
                   type: newMediaType === 'video' ? 'مونتاج ريلز فيديو' : 'تصميم إعلاني للمنتج',
                   highlight: newMediaHighlight.trim() || 'تصميم مميز يعزز التفاعل والمبيعات',
                   copySample: 'محتوى مخصص تم تنفيذه بأعلى جودة واحترافية.'
                 });
+                if (!result.success) {
+                  showToast(result.message);
+                  return;
+                }
                 setNewMediaTitle('');
                 setNewMediaUrl('');
+                setNewMediaFile(null);
                 setNewMediaClient('');
                 setNewMediaHighlight('');
                 reloadData();
                 showToast('تمت إضافة المادة لمعرض الأعمال بنجاح!');
+                } catch (error) {
+                  showToast(error.message || 'تعذر رفع المادة أو حفظها.');
+                } finally {
+                  setMediaSaving(false);
+                }
               }} className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
                   <Plus className="w-4 h-4 text-emerald-400" />
@@ -2036,7 +2047,7 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                         <span>اختر صورة من جهازك</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept={newMediaType === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/gif'}
                           onChange={handleFileUploadPortfolio}
                           className="hidden"
                         />
@@ -2047,7 +2058,7 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                       required
                       placeholder="مثال: /media/fashion-reel-1.mp4 أو اختر صورة من جهازك"
                       value={newMediaUrl}
-                      onChange={(e) => setNewMediaUrl(e.target.value)}
+                      onChange={(e) => { setNewMediaFile(null); setNewMediaUrl(e.target.value); }}
                       className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white"
                       dir="ltr"
                     />
@@ -2056,10 +2067,11 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
 
                 <button
                   type="submit"
-                  className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer"
+                  disabled={mediaSaving}
+                  className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-bold text-xs transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>إضافة المادة للمعرض</span>
+                  <span>{mediaSaving ? 'جارٍ الرفع والحفظ...' : 'إضافة المادة للمعرض'}</span>
                 </button>
               </form>
 
@@ -2100,9 +2112,13 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                         <span className="text-[10px] text-slate-500 truncate">{item.clientType}</span>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm('هل أنت متأكد من حذف هذا العنصر؟')) {
-                              db.deletePortfolioItem(item.id);
+                              const result = await db.deletePortfolioItem(item.id);
+                              if (!result.success) {
+                                showToast(result.message);
+                                return;
+                              }
                               reloadData();
                               showToast('تم حذف العنصر من المعرض');
                             }
@@ -2346,25 +2362,9 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                   </div>
                 </div>
 
-                {/* 2FA Option for new employee */}
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
-                    <input
-                      type="checkbox"
-                      checked={newEmpRequire2FA}
-                      onChange={(e) => setNewEmpRequire2FA(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-0"
-                    />
-                    <span className="font-bold">تفعيل التحقق بخطوتين (2FA) لهذا الموظف</span>
-                  </label>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${newEmpRequire2FA ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
-                    {newEmpRequire2FA ? '🔐 يتطلب كود أمان للدخول' : '⚡ تسجيل دخول مباشر وفوري'}
-                  </span>
-                </div>
-
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] text-slate-400">
-                    🔒 تشفير كامل لكلمة المرور وحفظ الصلاحيات المحددة فوراً.
+                    🔒 يحفظ Supabase كلمة المرور بأمان، وتُطبق صلاحيات الموظف على الخادم.
                   </span>
                   <button
                     type="submit"
@@ -2404,37 +2404,6 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => handleCopyEmpCredentials(emp)}
-                            className="p-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                            title="نسخ بيانات الدخول للموظف"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>نسخ الدخول</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newVal = emp.require2FA !== false ? false : true;
-                              const res = db.toggleEmployee2FA(emp.id, newVal);
-                              if (res.success) {
-                                reloadData();
-                                showToast(newVal ? `✅ تم تفعيل 2FA للموظف ${emp.name}` : `🔓 تم إلغاء 2FA للموظف ${emp.name} (دخول مباشر)`);
-                              }
-                            }}
-                            className={`p-1.5 rounded-lg text-[11px] flex items-center gap-1 font-bold cursor-pointer transition-colors ${
-                              emp.require2FA === false
-                                ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
-                                : 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30'
-                            }`}
-                            title={emp.require2FA === false ? 'تفعيل التحقق بخطوتين' : 'إلغاء التحقق بخطوتين'}
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>{emp.require2FA === false ? '2FA معطّل' : '2FA مفعّل'}</span>
-                          </button>
-
-                          <button
-                            type="button"
                             onClick={() => handleOpenEditPerms(emp)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors text-[11px] flex items-center gap-1 font-bold"
                             title="تعديل صلاحيات الموظف"
@@ -2443,56 +2412,14 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                             <span>الصلاحيات</span>
                           </button>
 
-                          {emp.phone !== 'emp' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteEmployee(emp.id, emp.name)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                              title="حذف حساب الموظف"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">
-                              أساسي
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Credentials Display Card */}
-                      <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-[10px] text-slate-500 block">كلمة المرور:</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-white text-[11px]">
-                              {showEmpPasswordsMap[emp.id] ? (emp.plainHint || emp.password || 'Emp@2026') : '••••••••'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => togglePasswordVisibilityForEmp(emp.id)}
-                              className="text-slate-400 hover:text-white p-0.5"
-                              title="إظهار/إخفاء كلمة المرور"
-                            >
-                              {showEmpPasswordsMap[emp.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] text-slate-500 block">كود الأمان (2FA):</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-amber-300 text-[11px] tracking-wider">
-                              {emp.securityCode || '2026'}
-                            </span>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
-                              emp.require2FA === false
-                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            }`}>
-                              {emp.require2FA === false ? '🔓 معطّل' : '🔐 مفعّل'}
-                            </span>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEmployee(emp.id, emp.name)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                            title="حذف حساب الموظف"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -2532,15 +2459,15 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-800/80">
                         <div>
-                          <span className="text-slate-400 block text-[10px]">كلمة المرور:</span>
-                          <span className="font-mono text-indigo-300 font-bold">
-                            {emp.plainHint || 'مشفرة في قاعدة البيانات'}
+                          <span className="text-slate-400 block text-[10px]">البريد الإلكتروني:</span>
+                          <span className="text-slate-300">
+                            {emp.email || 'غير متوفر'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px]">المنشئ والتاريخ:</span>
-                          <span className="text-slate-300">
-                            {emp.createdBy || 'المدير'} ({emp.createdAt || '2026-10-20'})
+                          <span className="text-slate-400 block text-[10px]">حالة الحساب:</span>
+                          <span className={emp.isActive === false ? 'text-rose-300' : 'text-emerald-300'}>
+                            {emp.isActive === false ? 'موقوف' : 'نشط'}
                           </span>
                         </div>
                       </div>
@@ -2734,9 +2661,9 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                       <span className="text-[10px] font-bold text-amber-400">الصفحة 3</span>
                       <span className="text-xs">🔐</span>
                     </div>
-                    <h5 className="text-xs font-black text-white">الأمان وتسجيل الدخول (2FA)</h5>
+                    <h5 className="text-xs font-black text-white">حماية الحسابات والصلاحيات</h5>
                     <p className="text-[11px] text-slate-400 leading-relaxed font-light">
-                      كلمات مرور صارمة 8+ خانات، كود التحقق الرباعي، ونظام الحماية من هجمات التكرار (قفل 5 دقائق).
+                      تتم إدارة تسجيل الدخول عبر Supabase، وتُحدد صلاحيات الموظف من لوحة المدير وتُتحقق على الخادم.
                     </p>
                   </div>
 
@@ -2927,7 +2854,7 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
                     <span className="text-[10px] text-slate-500">PNG, JPG, أو لقطة شاشة</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       onChange={handleFileUploadReceipt}
                       className="hidden"
                     />
@@ -3057,14 +2984,14 @@ export default function StaffPortalModal({ isOpen, onClose, currentUser, onLogou
 
               <div>
                 <label className="block text-slate-300 font-bold mb-1.5">
-                  أدخل كود التحقق الأمني الرباعي:
+                  أدخل رمز التأكيد المرسل إلى Telegram (6 أرقام):
                 </label>
                 <input
                   type="text"
-                  maxLength="4"
+                  maxLength="6"
                   autoFocus
                   required
-                  placeholder="• • • •"
+                  placeholder="• • • • • •"
                   value={deletionCodeInput}
                   onChange={(e) => setDeletionCodeInput(e.target.value.replace(/[^0-9]/g, ''))}
                   className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-700 text-center text-xl font-mono font-black text-rose-400 tracking-widest focus:outline-none focus:border-rose-500"

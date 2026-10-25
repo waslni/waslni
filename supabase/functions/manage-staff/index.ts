@@ -17,7 +17,7 @@ function readSecretKey() {
       // Fall through to the legacy server-only environment variable.
     }
   }
-  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  return Deno.env.get('SUPABASE_SECRET_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 }
 
 function readPublishableKey() {

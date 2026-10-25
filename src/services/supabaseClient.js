@@ -69,10 +69,9 @@ export const supabaseClient = {
   getSession: readSession,
   setSession: writeSession,
   async signUp({ email, password, metadata }) {
-    const result = await request('/auth/v1/signup', {
-      method: 'POST',
-      authenticated: false,
-      body: { email, password, data: metadata }
+    const redirect = typeof window !== 'undefined' ? `?redirect_to=${encodeURIComponent(window.location.origin + window.location.pathname)}` : '';
+    const result = await request(`/auth/v1/signup${redirect}`, {
+      method: 'POST', authenticated: false, body: { email, password, data: metadata }
     });
     if (result?.access_token) writeSession(result);
     return result;
@@ -106,5 +105,35 @@ export const supabaseClient = {
   },
   async invoke(functionName, body = {}) {
     return request(`/functions/v1/${encodeURIComponent(functionName)}`, { method: 'POST', body });
+  },
+  async uploadPublicFile(bucket, objectPath, file) {
+    if (!(file instanceof Blob)) throw new Error('اختر ملفًا صالحًا للرفع.');
+    const session = await refreshSession(readSession());
+    if (!session?.access_token) throw new Error('سجّل الدخول قبل رفع الملفات.');
+    const safePath = objectPath.split('/').map(encodeURIComponent).join('/');
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(bucket)}/${safePath}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert': 'false'
+      },
+      body: file
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || result.error || 'تعذر رفع الملف إلى التخزين.');
+    return `${SUPABASE_URL}/storage/v1/object/public/${encodeURIComponent(bucket)}/${safePath}`;
+  },
+  async removePublicFile(bucket, objectPath) {
+    const session = await refreshSession(readSession());
+    if (!session?.access_token) throw new Error('سجّل الدخول لإزالة الملف.');
+    const safePath = objectPath.split('/').map(encodeURIComponent).join('/');
+    const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${encodeURIComponent(bucket)}/${safePath}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}` }
+    });
+    if (!response.ok && response.status !== 404) throw new Error('تعذر حذف الملف من التخزين.');
+    return true;
   }
 };

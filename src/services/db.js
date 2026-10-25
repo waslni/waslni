@@ -8,8 +8,6 @@ import {
   notifyTransferConfirmed, 
   notifyLockoutTriggered,
   notifyFailedLoginAttempt,
-  notifyOrderDeletionSecurityCode,
-  notifyOrderDeleted
 } from './telegramService';
 import { isSupabaseConfigured, supabaseClient } from './supabaseClient';
 
@@ -348,6 +346,7 @@ function toDatabaseOrder(order = {}) {
   return {
     order_number: order.orderNumber || order.id,
     customer_id: order.customerId,
+    security_code: order.securityCode || null,
     customer_name: order.customerName || '',
     customer_phone: order.customerPhone || '',
     store_name: order.storeName || '',
@@ -376,6 +375,7 @@ function toDatabaseOrder(order = {}) {
 function toDatabaseOrderPatch(order = {}) {
   const mapping = {
     orderNumber: 'order_number', customerId: 'customer_id', customerName: 'customer_name',
+    securityCode: 'security_code',
     customerPhone: 'customer_phone', storeName: 'store_name', storeType: 'store_type',
     packageId: 'package_id', packageName: 'package_name', discountCode: 'discount_code',
     discountAmount: 'discount_amount', paymentStatus: 'payment_status',
@@ -402,6 +402,7 @@ function fromDatabaseOrder(order = {}) {
     timestamp: Date.parse(order.created_at || '') || Date.now(),
     createdAt: order.created_at,
     customerId: order.customer_id,
+    securityCode: order.security_code,
     customerName: order.customer_name,
     customerPhone: order.customer_phone,
     storeName: order.store_name,
@@ -433,6 +434,24 @@ function fromDatabasePackage(item = {}) {
   };
 }
 
+function fromDatabaseDiscount(item = {}) {
+  return { ...item, usesCount: Number(item.uses_count || 0), createdAt: item.created_at };
+}
+
+function fromDatabasePortfolio(item = {}) {
+  return {
+    ...item,
+    categoryName: item.category_name,
+    clientType: item.client_type,
+    type: item.deliverable_type,
+    mediaType: item.media_type,
+    mediaUrl: item.media_url,
+    thumbnail: item.thumbnail_url,
+    copySample: item.copy_sample,
+    isVisible: item.is_visible !== false
+  };
+}
+
 async function supabaseApiPost(endpoint, data) {
   const prefer = 'return=representation';
   if (endpoint === 'orders') {
@@ -458,6 +477,48 @@ async function supabaseApiPost(endpoint, data) {
     }));
     const result = await supabaseClient.rest('packages?on_conflict=id', { method: 'POST', body: packages, headers: { Prefer: 'resolution=merge-duplicates,return=representation' } });
     return { ok: true, status: 200, body: result };
+  }
+  if (endpoint === 'discount_codes') {
+    const codes = (Array.isArray(data) ? data : [data]).map(item => ({
+      code: String(item.code || '').trim().toUpperCase(), type: item.type || 'percentage',
+      value: Number(item.value || 0), description: item.description || '', active: item.active !== false,
+      uses_count: Number(item.usesCount || item.uses_count || 0)
+    }));
+    const result = await supabaseClient.rest('discount_codes?on_conflict=code', {
+      method: 'POST', body: codes,
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' }
+    });
+    return { ok: true, status: 200, body: result };
+  }
+  if (endpoint === 'discount_codes/delete') {
+    await supabaseClient.rest(`discount_codes?code=eq.${encodeURIComponent(data.code)}`, { method: 'DELETE' });
+    return { ok: true, status: 200, body: null };
+  }
+  if (endpoint === 'category_visibility') {
+    const rows = Object.entries(data || {}).map(([category_id, is_visible]) => ({ category_id, is_visible: Boolean(is_visible) }));
+    if (!rows.length) return { ok: true, status: 200, body: [] };
+    const result = await supabaseClient.rest('category_visibility?on_conflict=category_id', {
+      method: 'POST', body: rows,
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' }
+    });
+    return { ok: true, status: 200, body: result };
+  }
+  if (endpoint === 'portfolio') {
+    const items = (Array.isArray(data) ? data : [data]).map(item => ({
+      id: item.id, category: item.category, category_name: item.categoryName || '', title: item.title || '',
+      client_type: item.clientType || '', deliverable_type: item.type || '', media_type: item.mediaType || 'image',
+      media_url: item.mediaUrl || '', thumbnail_url: item.thumbnail || item.mediaUrl || '',
+      highlight: item.highlight || '', copy_sample: item.copySample || '', is_visible: item.isVisible !== false
+    }));
+    const result = await supabaseClient.rest('portfolio?on_conflict=id', {
+      method: 'POST', body: items,
+      headers: { Prefer: 'resolution=merge-duplicates,return=representation' }
+    });
+    return { ok: true, status: 200, body: (result || []).map(fromDatabasePortfolio) };
+  }
+  if (endpoint === 'portfolio/delete') {
+    await supabaseClient.rest(`portfolio?id=eq.${encodeURIComponent(data.id)}`, { method: 'DELETE' });
+    return { ok: true, status: 200, body: null };
   }
   if (endpoint === 'maintenance' || endpoint === 'settings') {
     const key = endpoint === 'maintenance' ? 'maintenance' : 'public';
@@ -520,7 +581,7 @@ async function apiGet() {
       try { return await supabaseClient.rest(`${table}?${query}`); }
       catch (error) {
         if (error.status !== 401 && error.status !== 403) console.warn('Supabase read failed:', table, error);
-        return [];
+        return null;
       }
     };
     try {
@@ -544,16 +605,17 @@ async function apiGet() {
       }));
       const settings = Object.fromEntries((settingsRows || []).map(row => [row.key, row.value]));
       const publicSettings = settings.public || {};
-      const maintenance = settings.maintenance || INITIAL_MAINTENANCE;
+      const maintenance = settingsRows === null ? null : (settings.maintenance || INITIAL_MAINTENANCE);
+      const categoryVisibility = categories === null ? null : Object.fromEntries((categories || []).map(row => [row.category_id, row.is_visible]));
       return {
-        orders: (orders || []).map(fromDatabaseOrder),
+        orders: orders === null ? null : (orders || []).map(fromDatabaseOrder),
         users,
-        packages: (packages || []).map(fromDatabasePackage),
-        settings: publicSettings,
+        packages: packages === null ? null : (packages || []).map(fromDatabasePackage),
+        settings: settingsRows === null ? null : publicSettings,
         maintenance,
-        discountCodes: discounts || [],
-        categoryVisibility: categories || [],
-        portfolio: portfolio || []
+        discountCodes: discounts === null ? null : (discounts || []).map(fromDatabaseDiscount),
+        categoryVisibility,
+        portfolio: portfolio === null ? null : (portfolio || []).map(fromDatabasePortfolio)
       };
     } catch (error) {
       console.warn('Supabase data sync failed:', error);
@@ -649,6 +711,28 @@ async function triggerServerSync() {
     if (currentPackagesRaw !== newPackagesRaw) {
       localStorage.setItem(STORAGE_KEYS.PACKAGES, newPackagesRaw);
       window.dispatchEvent(new CustomEvent('waslni_data_changed', { detail: { key: STORAGE_KEYS.PACKAGES } }));
+    }
+  }
+
+  if (data.categoryVisibility && typeof data.categoryVisibility === 'object') {
+    const value = JSON.stringify(data.categoryVisibility);
+    if (localStorage.getItem(STORAGE_KEYS.CATEGORY_VISIBILITY) !== value) {
+      localStorage.setItem(STORAGE_KEYS.CATEGORY_VISIBILITY, value);
+      window.dispatchEvent(new CustomEvent('waslni_data_changed', { detail: { key: STORAGE_KEYS.CATEGORY_VISIBILITY } }));
+    }
+  }
+  if (Array.isArray(data.discountCodes)) {
+    const value = JSON.stringify(data.discountCodes);
+    if (localStorage.getItem(STORAGE_KEYS.DISCOUNT_CODES) !== value) {
+      localStorage.setItem(STORAGE_KEYS.DISCOUNT_CODES, value);
+      window.dispatchEvent(new CustomEvent('waslni_data_changed', { detail: { key: STORAGE_KEYS.DISCOUNT_CODES } }));
+    }
+  }
+  if (Array.isArray(data.portfolio)) {
+    const value = JSON.stringify(data.portfolio);
+    if (localStorage.getItem(STORAGE_KEYS.PORTFOLIO) !== value) {
+      localStorage.setItem(STORAGE_KEYS.PORTFOLIO, value);
+      window.dispatchEvent(new CustomEvent('waslni_data_changed', { detail: { key: STORAGE_KEYS.PORTFOLIO } }));
     }
   }
   } finally {
@@ -856,11 +940,21 @@ export const db = {
   // ==========================================================================
   getCategoryVisibility: () => loadData(STORAGE_KEYS.CATEGORY_VISIBILITY, INITIAL_CATEGORY_VISIBILITY),
   
-  toggleCategoryVisibility: (categoryId, isVisible) => {
+  toggleCategoryVisibility: async (categoryId, isVisible) => {
     const visibility = db.getCategoryVisibility();
+    const previous = visibility[categoryId];
     visibility[categoryId] = isVisible;
     saveData(STORAGE_KEYS.CATEGORY_VISIBILITY, visibility);
-    return visibility;
+    if (isSupabaseConfigured) {
+      const result = await apiPostDetailed('category_visibility', visibility);
+      if (!result.ok) {
+        visibility[categoryId] = previous;
+        saveData(STORAGE_KEYS.CATEGORY_VISIBILITY, visibility);
+        return { success: false, message: result.body?.message || 'تعذر حفظ ظهور القسم على الخادم.' };
+      }
+      triggerServerSync();
+    }
+    return { success: true, visibility };
   },
 
   isCategoryVisible: (categoryId) => {
@@ -873,7 +967,7 @@ export const db = {
   // ==========================================================================
   getDiscountCodes: () => loadData(STORAGE_KEYS.DISCOUNT_CODES, INITIAL_DISCOUNT_CODES),
   
-  addDiscountCode: ({ code, type, value, description }) => {
+  addDiscountCode: async ({ code, type, value, description }) => {
     const codes = db.getDiscountCodes();
     const cleanCode = code.trim().toUpperCase();
     const existingIndex = codes.findIndex(c => c.code === cleanCode);
@@ -893,15 +987,21 @@ export const db = {
     } else {
       codes.unshift(newEntry);
     }
+    const result = await apiPostDetailed('discount_codes', newEntry);
+    if (!result.ok) return { success: false, message: result.body?.message || 'تعذر حفظ كود الخصم على الخادم.' };
     saveData(STORAGE_KEYS.DISCOUNT_CODES, codes);
-    return newEntry;
+    triggerServerSync();
+    return { success: true, code: newEntry };
   },
 
-  deleteDiscountCode: (code) => {
+  deleteDiscountCode: async (code) => {
     const codes = db.getDiscountCodes();
     const filtered = codes.filter(c => c.code !== code.toUpperCase());
+    const result = await apiPostDetailed('discount_codes/delete', { code: code.toUpperCase() });
+    if (!result.ok) return { success: false, message: result.body?.message || 'تعذر حذف كود الخصم من الخادم.' };
     saveData(STORAGE_KEYS.DISCOUNT_CODES, filtered);
-    return filtered;
+    triggerServerSync();
+    return { success: true, codes: filtered };
   },
 
   calculateDiscount: (codeStr, originalPrice) => {
@@ -938,16 +1038,22 @@ export const db = {
   // PACKAGES
   // ==========================================================================
   getPackages: () => loadData(STORAGE_KEYS.PACKAGES, INITIAL_PACKAGES),
-  updatePackage: (packageId, updatedFields) => {
+  updatePackage: async (packageId, updatedFields) => {
     const packages = db.getPackages();
     const index = packages.findIndex(p => p.id === packageId);
     if (index !== -1) {
+      const previous = { ...packages[index] };
       packages[index] = { ...packages[index], ...updatedFields };
+      const result = await apiPostDetailed('packages', packages);
+      if (!result.ok) {
+        packages[index] = previous;
+        return { success: false, message: result.body?.message || 'تعذر حفظ تعديلات الباقة على الخادم.' };
+      }
       saveData(STORAGE_KEYS.PACKAGES, packages);
-      apiPost('packages', packages).then(() => triggerServerSync());
-      return packages[index];
+      triggerServerSync();
+      return { success: true, package: packages[index] };
     }
-    return null;
+    return { success: false, message: 'لم يتم العثور على الباقة.' };
   },
 
   // ==========================================================================
@@ -960,22 +1066,50 @@ export const db = {
     return portfolio.filter(item => visibility[item.category] !== false);
   },
 
-  addPortfolioItem: (item) => {
+  uploadPortfolioAsset: async (file) => {
+    if (!isSupabaseConfigured) throw new Error('يجب ربط Supabase Storage قبل رفع ملفات المعرض.');
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm']);
+    if (!file || !allowedTypes.has(file.type)) throw new Error('نوع الملف غير مدعوم. استخدم JPG أو PNG أو WebP أو GIF أو MP4 أو WebM.');
+    if (file.size > 50 * 1024 * 1024) throw new Error('يجب أن يكون حجم الملف أقل من 50 ميجابايت.');
+    const extension = file.type.split('/')[1].replace('jpeg', 'jpg');
+    const fileId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const objectPath = `media/${fileId}.${extension}`;
+    return supabaseClient.uploadPublicFile('waslni-portfolio', objectPath, file);
+  },
+
+  addPortfolioItem: async (item) => {
+    if (/^data:/i.test(String(item?.mediaUrl || ''))) {
+      return { success: false, message: 'لا يمكن حفظ الملف كبيانات داخل قاعدة البيانات. ارفعه إلى Supabase Storage أولاً.' };
+    }
     const portfolio = loadData(STORAGE_KEYS.PORTFOLIO, INITIAL_PORTFOLIO);
     const newItem = {
       ...item,
-      id: 'port_' + Date.now()
+      id: `port_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`}`,
+      isVisible: true
     };
+    const result = await apiPostDetailed('portfolio', newItem);
+    if (!result.ok) return { success: false, message: result.body?.message || 'تعذر حفظ مادة المعرض على الخادم.' };
     portfolio.unshift(newItem);
     saveData(STORAGE_KEYS.PORTFOLIO, portfolio);
-    return newItem;
+    triggerServerSync();
+    return { success: true, item: newItem };
   },
 
-  deletePortfolioItem: (id) => {
+  deletePortfolioItem: async (id) => {
     const portfolio = loadData(STORAGE_KEYS.PORTFOLIO, INITIAL_PORTFOLIO);
+    const item = portfolio.find(entry => entry.id === id);
+    const result = await apiPostDetailed('portfolio/delete', { id });
+    if (!result.ok) return { success: false, message: result.body?.message || 'تعذر حذف مادة المعرض من الخادم.' };
     const filtered = portfolio.filter(p => p.id !== id);
     saveData(STORAGE_KEYS.PORTFOLIO, filtered);
-    return filtered;
+    if (item?.mediaUrl?.includes('/storage/v1/object/public/waslni-portfolio/')) {
+      const objectPath = item.mediaUrl.split('/storage/v1/object/public/waslni-portfolio/')[1];
+      try { await supabaseClient.removePublicFile('waslni-portfolio', decodeURIComponent(objectPath)); } catch (error) {
+        console.warn('Portfolio file cleanup failed:', error);
+      }
+    }
+    triggerServerSync();
+    return { success: true, portfolio: filtered };
   },
 
   // ==========================================================================
@@ -1350,7 +1484,7 @@ export const db = {
   },
 
   // تسجيل واستيراد طلب يدوي مباشرة من لوحة الإدارة (عند استلام طلب من الواتساب أو التيليجرام)
-  createManualOrder: ({ orderNumber, securityCode, customerName, customerPhone, storeName, storeType, packageName, amount, status, notes }) => {
+  createManualOrder: async ({ orderNumber, securityCode, customerName, customerPhone, storeName, storeType, packageName, amount, status, notes }) => {
     const orders = loadData(STORAGE_KEYS.ORDERS, []);
     const timestamp = Date.now();
     const finalOrderNumber = (orderNumber && orderNumber.trim()) 
@@ -1366,12 +1500,12 @@ export const db = {
       id: finalOrderNumber,
       orderNumber: finalOrderNumber,
       timestamp,
-      customerId: 'usr_manual_' + Date.now(),
+      customerId: null,
       customerName: (customerName || 'عميل وصلني').trim(),
       customerPhone: (customerPhone || '0500000000').trim(),
       storeName: (storeName || 'نشاط تجاري').trim(),
       storeType: (storeType || 'عام').trim(),
-      packageId: 'pkg_manual',
+      packageId: null,
       packageName: (packageName || 'باقة محتوى إعلاني وتسويقي').trim(),
       amount: Number(amount) || 99,
       originalAmount: Number(amount) || 99,
@@ -1388,33 +1522,45 @@ export const db = {
     };
 
     if (existingIndex !== -1) {
-      orders[existingIndex] = { ...orders[existingIndex], ...orderData };
-    } else {
-      orders.unshift(orderData);
+      return { success: false, message: 'رقم الطلب مستخدم بالفعل. أدخل رقمًا مختلفًا.' };
     }
-
+    if (!isSupabaseConfigured) {
+      return { success: false, message: 'يلزم الاتصال بقاعدة بيانات Supabase لتسجيل الطلب اليدوي.' };
+    }
+    const serverResult = await apiPostDetailed('orders', orderData);
+    if (!serverResult.ok) {
+      return { success: false, message: serverResult.body?.message || 'تعذر حفظ الطلب اليدوي في قاعدة البيانات.' };
+    }
+    orders.unshift({ ...orderData, ...(serverResult.body || {}) });
     saveData(STORAGE_KEYS.ORDERS, orders);
-    apiPost('orders', orderData).then(() => triggerServerSync());
-    return orderData;
+    triggerServerSync();
+    return { success: true, order: orders[0] };
   },
   
-  markOrderTransferredByEmployee: (orderId, { receiptImage, employeeName, notes, packageId }) => {
+  markOrderTransferredByEmployee: async (orderId, { receiptSentToTelegram = false, employeeName, notes, packageId }) => {
     const orders = loadData(STORAGE_KEYS.ORDERS, []);
     const orderIndex = orders.findIndex(o => o.id === orderId || o.orderNumber === orderId);
     if (orderIndex !== -1) {
+      const previousOrder = { ...orders[orderIndex] };
       orders[orderIndex] = {
         ...orders[orderIndex],
         status: 'transferred',
         paymentStatus: 'paid_verified',
         receiptImage: null,
-        receiptSentToTelegram: Boolean(receiptImage) || Boolean(orders[orderIndex].receiptSentToTelegram),
+        receiptSentToTelegram: Boolean(receiptSentToTelegram) || Boolean(orders[orderIndex].receiptSentToTelegram),
         transferredBy: employeeName || 'موظف العمليات',
         transferredAt: getSaudiDateTime(),
         packageId: packageId || orders[orderIndex].packageId,
         notes: notes ? `${orders[orderIndex].notes ? orders[orderIndex].notes + ' | ' : ''}${notes}` : orders[orderIndex].notes
       };
       saveData(STORAGE_KEYS.ORDERS, orders);
-      apiPost('orders/update', { id: orderId, updates: orders[orderIndex] }).then(() => triggerServerSync());
+      const serverResult = await apiPostDetailed('orders/update', { id: orderId, updates: orders[orderIndex] });
+      if (!serverResult.ok) {
+        orders[orderIndex] = previousOrder;
+        saveData(STORAGE_KEYS.ORDERS, orders);
+        return { success: false, message: serverResult.body?.message || 'تعذر حفظ حالة التحويل في قاعدة البيانات.' };
+      }
+      triggerServerSync();
 
       notifyTransferConfirmed({
         orderNumber: orders[orderIndex].orderNumber,
@@ -1426,38 +1572,52 @@ export const db = {
         securityCode: orders[orderIndex].securityCode
       });
 
-      return orders[orderIndex];
+      return { success: true, order: orders[orderIndex] };
     }
-    return null;
+    return { success: false, message: 'لم يتم العثور على الطلب.' };
   },
 
-  approveOrderByManager: (orderId) => {
+  approveOrderByManager: async (orderId) => {
     const orders = loadData(STORAGE_KEYS.ORDERS, []);
     const orderIndex = orders.findIndex(o => o.id === orderId || o.orderNumber === orderId);
     if (orderIndex !== -1) {
+      const previousOrder = { ...orders[orderIndex] };
       orders[orderIndex] = {
         ...orders[orderIndex],
         status: 'approved_by_manager',
         managerApprovedAt: getSaudiDateTime()
       };
       saveData(STORAGE_KEYS.ORDERS, orders);
-      apiPost('orders/update', { id: orderId, updates: orders[orderIndex] }).then(() => triggerServerSync());
-      return orders[orderIndex];
+      const serverResult = await apiPostDetailed('orders/update', { id: orderId, updates: orders[orderIndex] });
+      if (!serverResult.ok) {
+        orders[orderIndex] = previousOrder;
+        saveData(STORAGE_KEYS.ORDERS, orders);
+        return { success: false, message: serverResult.body?.message || 'تعذر اعتماد الطلب في قاعدة البيانات.' };
+      }
+      triggerServerSync();
+      return { success: true, order: orders[orderIndex] };
     }
-    return null;
+    return { success: false, message: 'لم يتم العثور على الطلب.' };
   },
 
-  updateOrderStatus: (orderId, status) => {
+  updateOrderStatus: async (orderId, status) => {
     const orders = loadData(STORAGE_KEYS.ORDERS, []);
     const orderIndex = orders.findIndex(o => o.id === orderId || o.orderNumber === orderId);
     if (orderIndex !== -1) {
+      const previousOrder = { ...orders[orderIndex] };
       orders[orderIndex].status = status;
       orders[orderIndex].statusUpdatedAt = getSaudiDateTime();
       saveData(STORAGE_KEYS.ORDERS, orders);
-      apiPost('orders/update', { id: orderId, updates: { status, statusUpdatedAt: orders[orderIndex].statusUpdatedAt } }).then(() => triggerServerSync());
-      return orders[orderIndex];
+      const serverResult = await apiPostDetailed('orders/update', { id: orderId, updates: { status } });
+      if (!serverResult.ok) {
+        orders[orderIndex] = previousOrder;
+        saveData(STORAGE_KEYS.ORDERS, orders);
+        return { success: false, message: serverResult.body?.message || 'تعذر تحديث حالة الطلب في قاعدة البيانات.' };
+      }
+      triggerServerSync();
+      return { success: true, order: orders[orderIndex] };
     }
-    return null;
+    return { success: false, message: 'لم يتم العثور على الطلب.' };
   },
 
   // طلب كود أمان رباعي لحذف طلب (صلاحية المدير العام فقط)
@@ -1471,28 +1631,14 @@ export const db = {
       return { success: false, message: 'الطلب غير موجود في النظام' };
     }
 
-    const deletionCode = generate4DigitCode();
-    const actionLabel = action === 'hard_delete' ? 'الحذف النهائي' : 'إلغاء الطلب';
-    const codeKey = `waslni_del_code_${action}_${orderId}`;
-    sessionStorage.setItem(codeKey, JSON.stringify({ code: deletionCode, expiresAt: Date.now() + 5 * 60 * 1000 }));
-
-    // إرسال كود تأكيد الحذف لبوت تيليجرام
-    const sent = await notifyOrderDeletionSecurityCode({
-      orderNumber: order.orderNumber,
-      securityCode: deletionCode,
-      managerName: manager.name,
-      action: actionLabel
-    });
-
-    if (!sent?.success) {
-      sessionStorage.removeItem(codeKey);
-      return { success: false, message: 'تعذر إرسال رمز التأكيد إلى Telegram؛ لم يتم بدء الحذف. تحقق من إعدادات Telegram على الخادم.' };
+    if (!isSupabaseConfigured) return { success: false, message: 'يلزم ربط قاعدة البيانات الآمنة قبل حذف الطلبات.' };
+    try {
+      return await supabaseClient.invoke('manage-order-deletion', {
+        action: 'request_code', orderNumber: order.orderNumber, deleteAction: action
+      });
+    } catch (error) {
+      return { success: false, message: error.message || 'تعذر طلب رمز الحذف من الخادم.' };
     }
-
-    return { 
-      success: true, 
-      message: `تم إرسال رمز تأكيد ${actionLabel} للطلب (${order.orderNumber}) إلى Telegram. صلاحية الرمز 5 دقائق.`
-    };
   },
 
   // تنفيذ حذف الطلب نهائياً بعد مطابقة كود الأمان الرباعي
@@ -1501,57 +1647,16 @@ export const db = {
       return { success: false, message: 'صلاحية حذف الطلبات محصورة بالمدير العام فقط' };
     }
 
-    const codeKey = `waslni_del_code_${action}_${orderId}`;
-    let savedCode = null;
-    try { savedCode = JSON.parse(sessionStorage.getItem(codeKey) || 'null'); } catch { savedCode = null; }
-    if (!savedCode?.code || Number(savedCode.expiresAt) < Date.now()) {
-      sessionStorage.removeItem(codeKey);
-      return { success: false, message: 'انتهت صلاحية جلسة الحذف أو لم يتم طلب كود، يرجى إعادة المحاولة' };
+    if (!isSupabaseConfigured) return { success: false, message: 'يلزم ربط قاعدة البيانات الآمنة قبل حذف الطلبات.' };
+    try {
+      const result = await supabaseClient.invoke('manage-order-deletion', {
+        action: 'confirm_code', orderNumber: orderId, deleteAction: action, code: enteredCode.trim()
+      });
+      if (result?.success) triggerServerSync();
+      return result;
+    } catch (error) {
+      return { success: false, message: error.message || 'تعذر تأكيد حذف الطلب على الخادم.' };
     }
-
-    if (enteredCode.trim() !== savedCode.code.trim()) {
-      return { success: false, message: 'كود التحقق الأمني غير صحيح! تم إلغاء عملية الحذف لحماية البيانات.' };
-    }
-
-    const orders = loadData(STORAGE_KEYS.ORDERS, []);
-    const orderIndex = orders.findIndex(o => o.id === orderId || o.orderNumber === orderId);
-    if (orderIndex === -1) {
-      return { success: false, message: 'الطلب غير موجود أو تم حذفه مسبقاً' };
-    }
-
-    const deletedOrder = orders[orderIndex];
-    if (action === 'hard_delete') {
-      orders.splice(orderIndex, 1);
-      saveData(STORAGE_KEYS.ORDERS, orders);
-      apiPost('orders/delete', { id: orderId }).then(() => triggerServerSync());
-    } else {
-      orders[orderIndex] = {
-        ...deletedOrder,
-        status: 'cancelled',
-        cancelledAt: getSaudiDateTime(),
-        cancelledBy: manager.name,
-        cancelReason: 'تم إلغاء الطلب من قِبل الإدارة'
-      };
-      saveData(STORAGE_KEYS.ORDERS, orders);
-      apiPost('orders/update', { id: orderId, updates: orders[orderIndex] }).then(() => triggerServerSync());
-    }
-    sessionStorage.removeItem(codeKey);
-
-    // إرسال تنبيه تأكيد الإلغاء/الحذف لبوت تيليجرام
-    const telegramResult = await notifyOrderDeleted({
-      orderNumber: deletedOrder.orderNumber,
-      customerName: deletedOrder.customerName,
-      amount: deletedOrder.amount,
-      managerName: manager.name,
-      action: action === 'hard_delete' ? 'حذف نهائي' : 'إلغاء'
-    });
-
-    return { 
-      success: true, 
-      message: action === 'hard_delete'
-        ? `تم حذف الطلب (${deletedOrder.orderNumber}) نهائياً${telegramResult?.success ? ' وإرسال إشعار إلى Telegram.' : ' لكن تعذر إرسال إشعار Telegram.'}`
-        : `تم إلغاء الطلب (${deletedOrder.orderNumber})${telegramResult?.success ? ' وإرسال إشعار إلى Telegram.' : ' لكن تعذر إرسال إشعار Telegram.'}`
-    };
   },
 
   // حذف نهائي دائم للطلب (لا يمكن الرجوع عنه) — صلاحية المدير فقط
@@ -1559,20 +1664,4 @@ export const db = {
     return db.deleteOrderByManager(orderId, enteredCode, manager, 'hard_delete');
   },
 
-  // تفعيل/تعطيل التحقق بخطوتين (2FA) للموظف من المدير
-  toggleEmployee2FA: (empId, require2FA) => {
-    const users = loadData(STORAGE_KEYS.USERS, INITIAL_USERS);
-    const index = users.findIndex(u => u.id === empId && u.role === 'employee');
-    if (index !== -1) {
-      users[index].require2FA = Boolean(require2FA);
-      saveData(STORAGE_KEYS.USERS, users);
-      apiPost('users', users[index]);
-      const current = db.getCurrentUser();
-      if (current && current.id === empId) {
-        db.setCurrentUser(users[index]);
-      }
-      return { success: true, employee: users[index] };
-    }
-    return { success: false };
-  },
 };

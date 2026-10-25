@@ -1,0 +1,10 @@
+project_id = "yxbgohzradjhcxzxtjtw"
+
+[functions.manage-staff]
+verify_jwt = true
+
+[functions.manage-order-deletion]
+verify_jwt = true
+
+[functions.telegram-notifications]
+verify_jwt = true

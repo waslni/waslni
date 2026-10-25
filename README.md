@@ -1,16 +1,32 @@
-# React + Vite
+# وصلني | Waslni
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+منصة عربية لإدارة محتوى المتاجر والأنشطة التجارية، مع باقات وطلبات ولوحات للمدير والموظفين والعملاء.
 
-Currently, two official plugins are available:
+## التقنيات
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 وVite 8.
+- Supabase Auth وPostgres مع سياسات RLS.
+- Supabase Storage لملفات معرض الأعمال.
+- Supabase Edge Functions لإدارة الموظفين، رموز حذف الطلبات، وتنبيهات Telegram.
+- GitHub Pages لاستضافة الواجهة الثابتة.
 
-## React Compiler
+## التطوير المحلي
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. ثبّت Node.js 22.
+2. انسخ `.env.example` إلى `.env.local` وأضف رابط Supabase ومفتاح Publishable فقط.
+3. شغّل `npm install` ثم `npm run dev`.
 
-## Expanding the Oxlint configuration
+لا تضع مفتاح Supabase السري أو رمز Telegram في متغيرات `VITE_*` أو ملفات الواجهة.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## إعداد Supabase والنشر
+
+اتبع الخطوات بالترتيب في [دليل إعداد Supabase وGitHub Pages](GITHUB_SUPABASE_SETUP_AR.md). يتضمن الدليل تشغيل migrations وseed وإنشاء المدير الأول ونشر Edge Functions وضبط أسرار Telegram.
+
+مركز معرض الأعمال يرفع الوسائط إلى bucket باسم `waslni-portfolio`. إيصالات التحويل لا تُحفظ في التخزين أو قاعدة البيانات؛ تُرسل إلى Telegram، وتُحفظ في الطلب علامة الإرسال فقط.
+
+## الأوامر
+
+- `npm run dev` تشغيل خادم التطوير.
+- `npm run build` بناء نسخة النشر.
+- `npm run lint` فحص lint.
+- `npm run preview` معاينة نسخة البناء محليًا.
