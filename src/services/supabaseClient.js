@@ -13,6 +13,17 @@ function readSession() {
   }
 }
 
+function decodeAccessTokenPayload(accessToken) {
+  try {
+    const encoded = accessToken?.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
+    if (!encoded) return null;
+    const binary = atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '='));
+    return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, char => char.charCodeAt(0))));
+  } catch {
+    return null;
+  }
+}
+
 function writeSession(session) {
   if (typeof localStorage === 'undefined') return;
   if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -97,7 +108,13 @@ export const supabaseClient = {
     return request('/auth/v1/user');
   },
   async getAuthenticatorAssuranceLevel() {
-    return request('/auth/v1/aal');
+    const claims = decodeAccessTokenPayload(readSession()?.access_token);
+    const currentLevel = claims ? (claims.aal || 'aal1') : null;
+    return {
+      currentLevel,
+      nextLevel: currentLevel,
+      currentAuthenticationMethods: Array.isArray(claims?.amr) ? claims.amr : []
+    };
   },
   async listMfaFactors() {
     return request('/auth/v1/factors');
