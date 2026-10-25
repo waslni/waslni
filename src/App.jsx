@@ -20,7 +20,8 @@ import { db } from './services/db';
 import { MessageCircle, Briefcase, Wrench, Clock, Lock, AlertTriangle } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(db.getCurrentUser());
+  // Resolve the active Supabase identity and role before showing any account UI.
+  const [currentUser, setCurrentUser] = useState(null);
   const [settings, setSettings] = useState(db.getSettings());
   const [maintenanceMode, setMaintenanceMode] = useState(() => db.getMaintenanceMode());
 
@@ -41,6 +42,7 @@ export default function App() {
   const [isStaffPortalOpen, setIsStaffPortalOpen] = useState(false);
 
   useEffect(() => {
+    db.refreshCurrentUser().then(setCurrentUser);
     const handleAuthChange = () => {
       setCurrentUser(db.getCurrentUser());
     };

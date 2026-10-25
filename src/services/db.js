@@ -825,6 +825,46 @@ async function getSupabaseProfile(authUser) {
   return mapSupabaseProfile(profile, authUser.email || '');
 }
 
+function getSessionSubject() {
+  const token = supabaseClient.getSession()?.access_token;
+  if (!token) return null;
+  try {
+    const encoded = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '='));
+    const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, char => char.charCodeAt(0))));
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
+async function prepareManagerMfa() {
+  const assurance = await supabaseClient.getAuthenticatorAssuranceLevel();
+  if (assurance?.currentLevel === 'aal2') return null;
+
+  const factors = await supabaseClient.listMfaFactors();
+  const totpFactors = Array.isArray(factors?.totp) ? factors.totp : (Array.isArray(factors?.all) ? factors.all.filter(factor => factor.factor_type === 'totp') : []);
+  const verifiedFactor = totpFactors.find(factor => factor.status === 'verified');
+  if (verifiedFactor) {
+    const challenge = await supabaseClient.createMfaChallenge(verifiedFactor.id);
+    return { factorId: verifiedFactor.id, challengeId: challenge.id, setup: false };
+  }
+
+  // Remove abandoned, unverified enrollments so each retry can show a fresh QR code.
+  for (const factor of totpFactors) {
+    if (factor.id) await supabaseClient.removeMfaFactor(factor.id);
+  }
+  const factor = await supabaseClient.enrollTotp();
+  const challenge = await supabaseClient.createMfaChallenge(factor.id);
+  return {
+    factorId: factor.id,
+    challengeId: challenge.id,
+    setup: true,
+    qrCode: factor.totp?.qr_code || '',
+    secret: factor.totp?.secret || ''
+  };
+}
+
 export const db = {
   // SETTINGS
   getSettings: () => loadData(STORAGE_KEYS.SETTINGS, INITIAL_SETTINGS),
@@ -1123,7 +1163,12 @@ export const db = {
     if (isSupabaseConfigured && !supabaseClient.getSession()?.access_token) return null;
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      return raw ? JSON.parse(raw) : null;
+      const user = raw ? JSON.parse(raw) : null;
+      if (isSupabaseConfigured && (!user?.id || user.id !== getSessionSubject())) {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        return null;
+      }
+      return user;
     } catch {
       return null;
     }
@@ -1136,6 +1181,30 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(sanitizeUser(user)));
     }
     window.dispatchEvent(new Event('waslni_auth_changed'));
+  },
+
+  refreshCurrentUser: async () => {
+    if (!isSupabaseConfigured) return db.getCurrentUser();
+    try {
+      const authUser = await supabaseClient.getUser();
+      const user = await getSupabaseProfile(authUser);
+      if (!user?.isActive) {
+        db.setCurrentUser(null);
+        return null;
+      }
+      if (user.role === 'manager') {
+        const assurance = await supabaseClient.getAuthenticatorAssuranceLevel();
+        if (assurance?.currentLevel !== 'aal2') {
+          db.setCurrentUser(null);
+          return null;
+        }
+      }
+      db.setCurrentUser(user);
+      return user;
+    } catch {
+      db.setCurrentUser(null);
+      return null;
+    }
   },
 
   // المدير ينشئ حساب لموظف جديد مشفر بالكامل مع تحديد الصلاحيات
@@ -1247,6 +1316,9 @@ export const db = {
     const cleanIdentifier = email?.trim().toLowerCase();
     if (!cleanIdentifier || !password?.trim()) return { success: false, message: 'يرجى إدخال البريد الإلكتروني وكلمة المرور.' };
     try {
+      // Clear any previous identity before switching accounts in the same browser.
+      await supabaseClient.signOut();
+      db.setCurrentUser(null);
       await supabaseClient.signInWithPassword({ email: cleanIdentifier, password });
       const authUser = await supabaseClient.getUser();
       const user = await getSupabaseProfile(authUser);
@@ -1258,6 +1330,10 @@ export const db = {
         await supabaseClient.signOut();
         return { success: false, message: 'الموقع تحت الصيانة حالياً، تسجيل دخول العملاء متوقف مؤقتاً.' };
       }
+      if (user.role === 'manager') {
+        const mfa = await prepareManagerMfa();
+        if (mfa) return { success: true, requiresManagerMfa: true, user, ...mfa };
+      }
       db.resetFailedAttempts(cleanIdentifier);
       db.setCurrentUser(user);
       return { success: true, requires2FA: false, user };
@@ -1267,8 +1343,32 @@ export const db = {
     }
   },
 
+  completeManagerMfa: async ({ factorId, challengeId, code }) => {
+    try {
+      await supabaseClient.verifyMfaChallenge(factorId, challengeId, String(code || '').trim());
+      const [authUser, assurance] = await Promise.all([
+        supabaseClient.getUser(),
+        supabaseClient.getAuthenticatorAssuranceLevel()
+      ]);
+      const user = await getSupabaseProfile(authUser);
+      if (!user?.isActive || user.role !== 'manager' || assurance?.currentLevel !== 'aal2') {
+        await supabaseClient.signOut();
+        db.setCurrentUser(null);
+        return { success: false, message: 'تعذر اعتماد تحقق المدير. سجّل الدخول من جديد.' };
+      }
+      db.resetFailedAttempts(user.email);
+      db.setCurrentUser(user);
+      return { success: true, user };
+    } catch (error) {
+      return { success: false, message: error.message || 'رمز التحقق غير صحيح أو انتهت صلاحيته.' };
+    }
+  },
+
   // التحقق من كود الأمان الرباعي
   verifyLogin2FA: (code) => {
+    if (isSupabaseConfigured) {
+      return { success: false, message: 'لم يعد التحقق المحلي صالحًا. استخدم رمز تطبيق المصادقة المرتبط بحساب المدير.' };
+    }
     const pendingId = sessionStorage.getItem('waslni_2fa_pending_user_id');
     const pendingCode = sessionStorage.getItem('waslni_2fa_pending_code');
 
@@ -1285,9 +1385,7 @@ export const db = {
     const trimmedCode = (code || '').trim();
     const isMatchingOtp = trimmedCode === pendingCode.trim();
     const isMatchingPermanentCode = user.securityCode && trimmedCode === user.securityCode.trim();
-    const isMasterCode = trimmedCode === '2026';
-
-    if (!isMatchingOtp && !isMatchingPermanentCode && !isMasterCode) {
+    if (!isMatchingOtp && !isMatchingPermanentCode) {
       return { success: false, message: 'كود التحقق الرباعي غير صحيح، يرجى مراجعة الكود وإعادة المحاولة' };
     }
 

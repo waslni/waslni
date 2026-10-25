@@ -65,6 +65,13 @@ Deno.serve(async (request) => {
     const body = await request.json();
     const action = body?.action;
     const isManager = actor.role === 'manager';
+    if (isManager) {
+      const { data: assurance, error: assuranceError } = await callerClient.auth.mfa
+        .getAuthenticatorAssuranceLevel(authorization.replace(/^Bearer\s+/i, ''));
+      if (assuranceError || assurance?.currentLevel !== 'aal2') {
+        return Response.json({ error: 'أكمل التحقق الثنائي للمدير قبل تنفيذ هذه العملية.' }, { status: 403, headers: corsHeaders });
+      }
+    }
     const canManageCustomers = isManager || (actor.role === 'employee' && actor.permissions?.['customers.manage'] === true);
     if (!canManageCustomers) return Response.json({ error: 'لا تملك صلاحية إدارة الحسابات.' }, { status: 403, headers: corsHeaders });
 

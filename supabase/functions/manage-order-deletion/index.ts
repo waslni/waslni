@@ -67,6 +67,11 @@ Deno.serve(async request => {
     if (!manager || manager.role !== 'manager' || !manager.is_active) {
       return reply(403, { success: false, message: 'تأكيد حذف الطلب متاح للمدير العام فقط.' });
     }
+    const { data: assurance, error: assuranceError } = await userClient.auth.mfa
+      .getAuthenticatorAssuranceLevel(authorization.replace(/^Bearer\s+/i, ''));
+    if (assuranceError || assurance?.currentLevel !== 'aal2') {
+      return reply(403, { success: false, message: 'أكمل التحقق الثنائي للمدير قبل تنفيذ هذه العملية.' });
+    }
 
     const body = await request.json();
     const orderNumber = String(body.orderNumber || '').trim().slice(0, 40);

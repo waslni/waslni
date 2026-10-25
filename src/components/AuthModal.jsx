@@ -40,6 +40,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [generatedSecurityCode, setGeneratedSecurityCode] = useState('');
   const [pendingUser, setPendingUser] = useState(null);
+  const [managerMfa, setManagerMfa] = useState(null);
 
   // Security: Clean and reset all inputs whenever modal opens or closes or mode changes
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
       setCustomStoreType('');
       setTwoFactorCode('');
       setPendingUser(null);
+      setManagerMfa(null);
       setError('');
       setSuccessMessage('');
       setShowPassword(false);
@@ -66,6 +68,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
       setCustomStoreType('');
       setTwoFactorCode('');
       setPendingUser(null);
+      setManagerMfa(null);
       setError('');
       setSuccessMessage('');
       setShowPassword(false);
@@ -148,6 +151,22 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
       return;
     }
 
+    if (result.success && result.requiresManagerMfa) {
+      setPassword('');
+      setPendingUser(result.user);
+      setManagerMfa({
+        factorId: result.factorId,
+        challengeId: result.challengeId,
+        setup: result.setup,
+        qrCode: result.qrCode,
+        secret: result.secret
+      });
+      setTwoFactorCode('');
+      setError('');
+      setMode(result.setup ? 'manager_mfa_setup' : 'manager_mfa_verify');
+      return;
+    }
+
     if (result.success && result.requires2FA === false) {
       // موظف بدون 2FA - دخول مباشر
       setPassword('');
@@ -169,6 +188,33 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
     } else {
       setError(result.message || 'بيانات الدخول غير صحيحة، يرجى التأكد من اسم المستخدم وكلمة المرور');
     }
+  };
+
+  const handleManagerMfaSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!/^\d{6}$/.test(twoFactorCode.trim())) {
+      setError('أدخل الرمز المكون من 6 أرقام من تطبيق المصادقة.');
+      return;
+    }
+    setLoading(true);
+    const result = await db.completeManagerMfa({
+      factorId: managerMfa?.factorId,
+      challengeId: managerMfa?.challengeId,
+      code: twoFactorCode.trim()
+    });
+    setLoading(false);
+    if (!result.success) {
+      setError(result.message);
+      return;
+    }
+    setEmail('');
+    setPassword('');
+    setTwoFactorCode('');
+    setPendingUser(null);
+    setManagerMfa(null);
+    onSuccess(result.user, intendedPackage);
+    onClose();
   };
 
   // Step 2: Verify 4-Digit Code
@@ -303,13 +349,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
             <div>
               <h3 className="text-base font-black text-white">
                 {mode === 'login' && 'تسجيل الدخول الآمن'}
-                {mode === 'verify_2fa' && 'التحقق الثنائي (كود الأمان الرباعي)'}
+                {mode === 'verify_2fa' && 'التحقق الثنائي'}
+                {mode === 'manager_mfa_setup' && 'تأمين حساب المدير'}
+                {mode === 'manager_mfa_verify' && 'التحقق من حساب المدير'}
                 {mode === 'register' && 'إنشاء حساب زبون جديد (معايير الأمان)'}
                 {mode === 'forgot' && 'استعادة الرمز السري'}
               </h3>
               <p className="text-xs text-slate-400">
-                {mode === 'verify_2fa' 
-                  ? 'تم إرسال كود الأمان الرباعي لحماية حسابك' 
+                {mode === 'manager_mfa_setup' || mode === 'manager_mfa_verify'
+                  ? 'يلزم رمز من تطبيق المصادقة قبل فتح لوحة المدير'
+                  : mode === 'verify_2fa'
+                  ? 'تحقق إضافي لحماية الحساب'
                   : 'منظومة حماية متقدمة ومطابقة لمعايير الأمان'}
               </p>
             </div>
@@ -467,6 +517,42 @@ export default function AuthModal({ isOpen, onClose, onSuccess, initialMode = 'l
                   <span>العودة لإدخال اسم المستخدم وكلمة المرور</span>
                 </button>
               </div>
+            </form>
+          )}
+
+          {(mode === 'manager_mfa_setup' || mode === 'manager_mfa_verify') && (
+            <form onSubmit={handleManagerMfaSubmit} className="space-y-4 text-center py-2">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 mx-auto flex items-center justify-center shadow-lg">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="text-base font-black text-white">
+                  {mode === 'manager_mfa_setup' ? 'اربط تطبيق المصادقة بحساب المدير' : 'أدخل رمز المصادقة'}
+                </h4>
+                <p className="text-xs text-slate-300 mt-1">الحساب: {pendingUser?.email}</p>
+              </div>
+              {mode === 'manager_mfa_setup' && (
+                <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+                  <p className="text-xs text-slate-300">افتح Google Authenticator أو Microsoft Authenticator وامسح الرمز التالي:</p>
+                  {managerMfa?.qrCode && <img src={managerMfa.qrCode} alt="رمز ربط تطبيق المصادقة" className="mx-auto w-44 h-44 bg-white rounded-xl p-2" />}
+                  {managerMfa?.secret && <p dir="ltr" className="break-all rounded-lg bg-black/40 p-2 font-mono text-[11px] text-amber-200">{managerMfa.secret}</p>}
+                </div>
+              )}
+              <label className="block text-xs font-bold text-slate-300 text-right" htmlFor="manager-totp-code">رمز التحقق المكون من 6 أرقام</label>
+              <input
+                id="manager-totp-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={twoFactorCode}
+                onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full text-center tracking-[0.5em] font-mono text-xl rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-white outline-none focus:border-indigo-400"
+                placeholder="000000"
+                required
+              />
+              <button disabled={loading} className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 py-3 font-bold text-white">
+                {loading ? 'جارٍ التحقق...' : 'تحقق وافتح لوحة المدير'}
+              </button>
             </form>
           )}
 

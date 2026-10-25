@@ -96,6 +96,30 @@ export const supabaseClient = {
     if (!session?.access_token) return null;
     return request('/auth/v1/user');
   },
+  async getAuthenticatorAssuranceLevel() {
+    return request('/auth/v1/aal');
+  },
+  async listMfaFactors() {
+    return request('/auth/v1/factors');
+  },
+  async enrollTotp(friendlyName = 'Waslni Manager') {
+    return request('/auth/v1/factors', {
+      method: 'POST', body: { factor_type: 'totp', friendly_name: friendlyName }
+    });
+  },
+  async createMfaChallenge(factorId) {
+    return request(`/auth/v1/factors/${encodeURIComponent(factorId)}/challenge`, { method: 'POST', body: {} });
+  },
+  async verifyMfaChallenge(factorId, challengeId, code) {
+    const result = await request(`/auth/v1/factors/${encodeURIComponent(factorId)}/verify`, {
+      method: 'POST', body: { challenge_id: challengeId, code }
+    });
+    if (result?.access_token) writeSession(result);
+    return result;
+  },
+  async removeMfaFactor(factorId) {
+    return request(`/auth/v1/factors/${encodeURIComponent(factorId)}`, { method: 'DELETE' });
+  },
   async signOut() {
     try {
       if (readSession()?.access_token) await request('/auth/v1/logout?scope=local', { method: 'POST' });
