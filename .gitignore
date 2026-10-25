@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+supabase/.temp/
 
 # Local JSON API data is not suitable for a public repository or GitHub Pages.
 data/store.json
