@@ -74,6 +74,12 @@ export const supabaseClient = {
       method: 'POST', authenticated: false, body: { email, password, data: metadata }
     });
     if (result?.access_token) writeSession(result);
+    // GoTrue returns a bare user object when email confirmation is enabled,
+    // but a token response (with `user`) when confirmation is disabled.
+    // Normalize both API shapes for registerCustomer.
+    if (result && !result.user && result.id && !result.access_token) {
+      return { ...result, user: result };
+    }
     return result;
   },
   async signInWithPassword({ email, password }) {
