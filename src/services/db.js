@@ -1399,6 +1399,23 @@ export const db = {
   },
 
   createOrder: async ({ customer, packageItem, amount, storeName, storeType, notes, discountCode, discountAmount }) => {
+    if (isSupabaseConfigured) {
+      try {
+        const authUser = await supabaseClient.getUser();
+        const verifiedCustomer = await getSupabaseProfile(authUser);
+        if (!verifiedCustomer?.isActive) {
+          return { success: false, message: 'سجّل الدخول بحساب عميل نشط قبل إرسال الطلب. إذا لم يكن لديك حساب، أنشئ حسابًا ثم سجّل الدخول.' };
+        }
+        if (verifiedCustomer.role !== 'customer') {
+          return { success: false, message: 'إنشاء طلب خدمة متاح لحسابات العملاء فقط. سجّل الخروج ثم استخدم حساب العميل، أو أنشئ حسابًا جديدًا.' };
+        }
+        // Bind the order to the authenticated profile, never to an ID supplied by the UI.
+        customer = { ...customer, id: verifiedCustomer.id, role: verifiedCustomer.role };
+      } catch {
+        return { success: false, message: 'تعذر التحقق من جلسة الدخول. سجّل الدخول مجددًا ثم حاول إرسال الطلب.' };
+      }
+    }
+
     const orders = loadData(STORAGE_KEYS.ORDERS, []);
     const timestamp = Date.now();
     if (!customer?.role || customer.role === 'customer') {
@@ -1448,9 +1465,12 @@ export const db = {
       saveData(STORAGE_KEYS.ORDERS, remainingOrders);
       const serverMessage = serverResult.body?.message || serverResult.body?.error || '';
       const quotaError = serverMessage.includes('الحد اليومي') || serverMessage.includes('24 ساعة');
+      const accessError = serverMessage.toLowerCase().includes('row-level security');
       return {
         success: false,
-        message: serverMessage || (quotaError
+        message: accessError
+          ? 'تعذر اعتماد صلاحية حسابك لإنشاء الطلب. سجّل الخروج، ثم سجّل الدخول بحساب عميل نشط وحاول مجددًا.'
+          : serverMessage || (quotaError
           ? 'وصلت إلى الحد المسموح من الطلبات خلال آخر 24 ساعة.'
           : 'تعذر حفظ الطلب في قاعدة البيانات؛ لم يتم إنشاء الطلب. حاول مرة أخرى.'),
         quota: quotaError ? db.getCustomerOrderQuota(customer) : undefined
