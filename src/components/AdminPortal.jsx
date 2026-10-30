@@ -26,7 +26,8 @@ export default function AdminPortal({ onBack }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [draftWork, setDraftWork] = useState({ title: '', category: 'تصميم إعلاني', type: 'تصميم إعلاني', filePath: '', poster: '' });
+  const [draftWork, setDraftWork] = useState({ title: '', category: initialContent.portfolio[0]?.category || '', type: 'تصميم إعلاني', filePath: '', poster: '' });
+  const [isNewCategory, setIsNewCategory] = useState(false);
 
   const loadDashboard = async (accessToken) => {
     const [profile, repoContent, repoMedia] = await Promise.all([
@@ -100,6 +101,7 @@ export default function AdminPortal({ onBack }) {
   const updateBrand = (key, value) => setContent(current => ({ ...current, brand: { ...current.brand, [key]: value } }));
   const updateAbout = (key, value) => setContent(current => ({ ...current, about: { ...current.about, [key]: value } }));
   const selectedPackage = content.packages.find(item => item.id === selectedPackageId) || content.packages[0];
+  const portfolioCategories = [...new Set(content.portfolio.map(item => item.category?.trim()).filter(Boolean))];
   const updatePackage = (key, value) => {
     if (!selectedPackage) return;
     const nextPackage = { ...selectedPackage, [key]: key === 'price' ? (value === '' ? '' : Number(value)) : value };
@@ -124,17 +126,18 @@ export default function AdminPortal({ onBack }) {
   };
 
   const addWork = () => {
-    if (!draftWork.title.trim() || !draftWork.filePath) { setError('أدخل عنوان العمل وارفع ملفه أولًا.'); return; }
+    if (!draftWork.title.trim() || !draftWork.category.trim() || !draftWork.filePath) { setError('اختر قسم العمل أو أضف قسمًا جديدًا، ثم أدخل العنوان وارفع الملف.'); return; }
     const video = /\.(mp4|webm|mov)$/i.test(draftWork.filePath);
     const work = {
       id: `work_${Date.now()}`,
-      category: draftWork.category,
+      category: draftWork.category.trim(),
       title: draftWork.title.trim(),
       type: draftWork.type.trim() || (video ? 'فيديو قصير' : 'تصميم إعلاني'),
       ...(video ? { mediaType: 'video', video: draftWork.filePath, image: '', ...(draftWork.poster ? { poster: draftWork.poster } : {}) } : { image: draftWork.filePath })
     };
     setContent(current => ({ ...current, portfolio: [work, ...current.portfolio] }));
-    setDraftWork({ title: '', category: 'تصميم إعلاني', type: 'تصميم إعلاني', filePath: '', poster: '' });
+    setDraftWork({ title: '', category: portfolioCategories[0] || '', type: 'تصميم إعلاني', filePath: '', poster: '' });
+    setIsNewCategory(false);
     setStatus('أضيف العمل إلى التغييرات غير المحفوظة؛ اضغط «حفظ ونشر التعديلات».');
   };
 
@@ -166,7 +169,7 @@ export default function AdminPortal({ onBack }) {
           {selectedPackage && <div className="grid gap-5 sm:grid-cols-2"><Field label="اسم الباقة" value={selectedPackage.name} onChange={value=>updatePackage('name',value)}/><Field label="السعر بالريال" type="number" min="0" value={selectedPackage.price} onChange={value=>updatePackage('price',value)}/><Field label="وصف مختصر" value={selectedPackage.subtitle} onChange={value=>updatePackage('subtitle',value)}/><Field label="فترة/وحدة السعر" value={selectedPackage.period} onChange={value=>updatePackage('period',value)}/><Field label="الشارة" value={selectedPackage.badge} onChange={value=>updatePackage('badge',value)}/><label className="block text-sm font-bold sm:col-span-2">المزايا (ميزة واحدة في كل سطر)<textarea rows={6} value={selectedPackage.features.join('\n')} onChange={event=>updatePackage('features',event.target.value.split('\n'))} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-normal text-white outline-none focus:border-indigo-400"/></label><Field label="تنويه أو شروط" value={selectedPackage.terms} onChange={value=>updatePackage('terms',value)}/></div>}</section>}
 
         {activeTab === 'works' && <div className="space-y-6"><section className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-7"><h2 className="text-xl font-black">رفع صورة أو مقطع وإضافته للمعرض</h2><p className="mt-2 text-sm leading-6 text-slate-400">يُرفع الملف إلى مستودع GitHub ويظهر في الموقع بعد حفظ المحتوى وانتهاء البناء. الحد الأقصى 50 ميجابايت للملف.</p><label className="mt-5 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300/30 bg-indigo-400/5 p-5 text-center hover:bg-indigo-400/10"><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={uploadMedia} disabled={uploading} className="sr-only"/>{uploading?<span className="animate-pulse text-indigo-200">جارٍ رفع الملف إلى GitHub…</span>:<><CloudUpload size={28} className="text-indigo-300"/><b>{draftWork.filePath ? `تم اختيار: ${draftWork.filePath}` : 'اضغط لاختيار صورة أو فيديو من جهازك'}</b><small className="text-slate-500">JPG · PNG · WebP · MP4 · WebM</small></>}</label>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="عنوان العمل" value={draftWork.title} onChange={value=>setDraftWork(current=>({...current,title:value}))}/><Field label="نوع العمل" value={draftWork.type} onChange={value=>setDraftWork(current=>({...current,type:value}))}/><Field label="التصنيف" value={draftWork.category} onChange={value=>setDraftWork(current=>({...current,category:value}))}/>{draftWork.filePath && /\.(mp4|webm|mov)$/i.test(draftWork.filePath) && <Field label="مسار صورة الغلاف (اختياري)" value={draftWork.poster} onChange={value=>setDraftWork(current=>({...current,poster:value}))}/>}</div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="عنوان العمل" value={draftWork.title} onChange={value=>setDraftWork(current=>({...current,title:value}))}/><Field label="نوع العمل" value={draftWork.type} onChange={value=>setDraftWork(current=>({...current,type:value}))}/><label className="block text-sm font-bold text-slate-200">قسم المعرض<select value={isNewCategory?'__new__':draftWork.category} onChange={event=>{const value=event.target.value;setIsNewCategory(value==='__new__');setDraftWork(current=>({...current,category:value==='__new__'?'':value}));}} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-3 text-sm font-normal text-white outline-none focus:border-indigo-400"><option value="" disabled>اختر القسم الذي سيظهر فيه العمل</option>{portfolioCategories.map(category=><option key={category} value={category}>{category}</option>)}<option value="__new__">＋ إضافة قسم جديد</option></select></label>{isNewCategory&&<Field label="اسم القسم الجديد" value={draftWork.category} onChange={value=>setDraftWork(current=>({...current,category:value}))}/>}{draftWork.filePath && /\.(mp4|webm|mov)$/i.test(draftWork.filePath) && <Field label="مسار صورة الغلاف (اختياري)" value={draftWork.poster} onChange={value=>setDraftWork(current=>({...current,poster:value}))}/>}</div>
           {media.length>0 && <div className="mt-5"><label className="text-sm font-bold">أو اختر ملفًا رفعته سابقًا<select value={draftWork.filePath} onChange={event=>setDraftWork(current=>({...current,filePath:event.target.value}))} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-3 text-sm text-white"><option value="">اختر من الملفات</option>{media.map(item=><option key={item.path} value={item.path}>{item.name}</option>)}</select></label></div>}
           <button onClick={addWork} className="mt-5 w-full rounded-xl bg-indigo-500 px-4 py-3 font-black hover:bg-indigo-400">إضافة إلى المعرض</button></section>
           <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-7"><h2 className="mb-4 text-xl font-black">الأعمال المعروضة ({content.portfolio.length})</h2><div className="grid gap-3 sm:grid-cols-2">{content.portfolio.map(item=><article key={item.id} className="flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-950/50 p-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-800 text-indigo-300">{item.mediaType==='video'?<FileVideo size={19}/>:<FileImage size={19}/>}</span><div className="min-w-0 flex-1"><b className="block truncate text-sm">{item.title}</b><small className="text-slate-500">{item.category} · {item.type}</small></div><button onClick={()=>removeWork(item.id)} className="rounded-lg p-2 text-rose-300 hover:bg-rose-400/10" title="إزالة من المعرض"><Trash2 size={17}/></button></article>)}</div></section></div>}
