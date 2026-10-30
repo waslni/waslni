@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, Check, CloudUpload, ExternalLink, FileImage, FileVideo, LogOut, Package, Save, ShieldCheck, Store, Trash2 } from 'lucide-react';
 import initialContent from '../data/siteContent.json';
 import { githubAdminSession, getRepositoryJson, listRepositoryMedia, saveRepositoryJson, uploadRepositoryMedia, verifyGithubAdminToken } from '../services/githubContentService';
+import { adminTelegramLogin } from '../services/adminTelegramLogin';
 
 const CONTENT_PATH = 'src/data/siteContent.json';
 const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
@@ -12,6 +13,9 @@ function Field({ label, value, onChange, type = 'text', ...props }) {
 
 export default function AdminPortal({ onBack }) {
   const [token, setToken] = useState(() => githubAdminSession.read());
+  const [telegramVerified, setTelegramVerified] = useState(() => sessionStorage.getItem('waslni_admin_telegram_verified') === '1');
+  const [challengeId, setChallengeId] = useState('');
+  const [telegramCode, setTelegramCode] = useState('');
   const [admin, setAdmin] = useState(null);
   const [content, setContent] = useState(initialContent);
   const [contentSha, setContentSha] = useState('');
@@ -38,7 +42,7 @@ export default function AdminPortal({ onBack }) {
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !telegramVerified) return;
     let cancelled = false;
     setLoading(true);
     loadDashboard(token).catch(loadError => {
@@ -51,23 +55,37 @@ export default function AdminPortal({ onBack }) {
     return () => { cancelled = true; };
   }, []);
 
-  const login = async (event) => {
+  const sendTelegramCode = async (event) => {
     event.preventDefault();
     setError(''); setStatus(''); setLoading(true);
     const enteredToken = token.trim();
     try {
-      await loadDashboard(enteredToken);
-      githubAdminSession.write(enteredToken);
-      setToken(enteredToken);
-      setStatus('تم التحقق من صلاحية حسابك.');
+      const result = await adminTelegramLogin({ action: 'send', githubToken: enteredToken });
+      setChallengeId(result.challengeId);
+      setStatus(result.message);
     } catch (loginError) {
-      setAdmin(null);
       setError(loginError.message || 'تعذر تسجيل الدخول إلى GitHub.');
     } finally { setLoading(false); }
   };
 
+  const verifyTelegramCode = async (event) => {
+    event.preventDefault();
+    setError(''); setStatus(''); setLoading(true);
+    const enteredToken = token.trim();
+    try {
+      await adminTelegramLogin({ action: 'verify', githubToken: enteredToken, challengeId, code: telegramCode.trim() });
+      await loadDashboard(enteredToken);
+      githubAdminSession.write(enteredToken);
+      sessionStorage.setItem('waslni_admin_telegram_verified', '1');
+      setTelegramVerified(true);
+      setStatus('تم التحقق من الرمز والدخول إلى لوحة المدير.');
+    } catch (loginError) {
+      setError(loginError.message || 'تعذر التحقق من الرمز.');
+    } finally { setLoading(false); }
+  };
+
   const logout = () => {
-    githubAdminSession.clear(); setToken(''); setAdmin(null); setContent(initialContent); setContentSha(''); setMedia([]); setStatus('تم تسجيل الخروج.'); setError('');
+    githubAdminSession.clear(); sessionStorage.removeItem('waslni_admin_telegram_verified'); setTelegramVerified(false); setChallengeId(''); setTelegramCode(''); setToken(''); setAdmin(null); setContent(initialContent); setContentSha(''); setMedia([]); setStatus('تم تسجيل الخروج.'); setError('');
   };
 
   const commitContent = async (nextContent, message) => {
@@ -131,13 +149,13 @@ export default function AdminPortal({ onBack }) {
     </div></header>
 
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12">
-      {!admin ? <div className="mx-auto max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20"><div className="bg-gradient-to-l from-indigo-600/20 to-violet-600/5 p-6 sm:p-8"><span className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-indigo-300/20 bg-indigo-400/10 text-indigo-200"><ShieldCheck size={28}/></span><h1 className="text-2xl font-black">دخول المدير عبر GitHub</h1><p className="mt-2 leading-7 text-slate-300">استخدم رمز وصول محدودًا لهذا المستودع. لا تدخل كلمة مرور GitHub هنا.</p></div>
+      {!admin ? <div className="mx-auto max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/20"><div className="bg-gradient-to-l from-indigo-600/20 to-violet-600/5 p-6 sm:p-8"><span className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-indigo-300/20 bg-indigo-400/10 text-indigo-200"><ShieldCheck size={28}/></span><h1 className="text-2xl font-black">دخول المدير مع تحقق Telegram</h1><p className="mt-2 leading-7 text-slate-300">تحقق أولًا برمز GitHub المحدود، ثم أدخل الرمز الذي نرسله إلى Telegram. لكل رمز محاولتان وصلاحيته خمس دقائق.</p></div>
         {(error || status) && <div role="status" className={`mx-6 mt-6 rounded-xl border p-4 text-sm leading-6 sm:mx-8 ${error ? 'border-rose-400/20 bg-rose-400/10 text-rose-200' : 'border-emerald-400/20 bg-emerald-400/10 text-emerald-100'}`}>{error || status}</div>}
-        <form onSubmit={login} className="space-y-4 p-6 sm:p-8"><label className="block text-sm font-bold">Fine-grained personal access token<input required type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} placeholder="github_pat_…" dir="ltr" className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-left font-mono text-sm text-white outline-none focus:border-indigo-400"/></label>
-          <button disabled={loading} className="w-full rounded-xl bg-indigo-500 px-4 py-3.5 font-black hover:bg-indigo-400 disabled:opacity-60">{loading ? 'جارٍ التحقق…' : 'دخول لوحة الإدارة'}</button>
+        {!challengeId ? <form onSubmit={sendTelegramCode} className="space-y-4 p-6 sm:p-8"><label className="block text-sm font-bold">رمز وصول GitHub المحدود<input required type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} placeholder="github_pat_…" dir="ltr" className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-left font-mono text-sm text-white outline-none focus:border-indigo-400"/></label>
+          <button disabled={loading} className="w-full rounded-xl bg-indigo-500 px-4 py-3.5 font-black hover:bg-indigo-400 disabled:opacity-60">{loading ? 'جارٍ التحقق والإرسال…' : 'تحقق وأرسل الرمز إلى Telegram'}</button>
           <div className="rounded-xl border border-white/5 bg-black/20 p-4 text-sm leading-6 text-slate-400"><b className="text-slate-200">إعداد الرمز لأول مرة:</b><ol className="mr-5 mt-2 list-decimal space-y-1"><li>GitHub → Settings → Developer settings → Fine-grained tokens.</li><li>Generate new token، واختر المستودع <span dir="ltr">waslni/waslni</span> فقط.</li><li>اجعل Contents على Read and write، ولا تختر صلاحيات أخرى.</li><li>انسخ الرمز والصقه هنا. يحفظه المتصفح مؤقتًا حتى تسجل الخروج أو تغلق الجلسة.</li></ol></div>
           <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-bold text-indigo-300 hover:text-indigo-200">إنشاء رمز GitHub المحدود <ExternalLink size={14}/></a>
-        </form>
+        </form> : <form onSubmit={verifyTelegramCode} className="space-y-4 p-6 sm:p-8"><label className="block text-sm font-bold">رمز Telegram المكوّن من 6 أرقام<input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" value={telegramCode} onChange={event => setTelegramCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="123456" dir="ltr" className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-center font-mono text-2xl tracking-[0.4em] text-white outline-none focus:border-indigo-400"/></label><button disabled={loading || telegramCode.length !== 6} className="w-full rounded-xl bg-indigo-500 px-4 py-3.5 font-black hover:bg-indigo-400 disabled:opacity-60">{loading ? 'جارٍ التحقق…' : 'تحقق وادخل لوحة المدير'}</button><button type="button" onClick={()=>{setChallengeId('');setTelegramCode('');setError('');setStatus('');}} className="w-full py-2 text-sm text-slate-400 hover:text-white">العودة وإرسال رمز جديد</button></form>}
       </div> : <>
         <div className="mb-8 flex flex-col justify-between gap-4 rounded-3xl border border-emerald-300/10 bg-gradient-to-l from-emerald-400/10 via-slate-900/80 to-indigo-500/10 p-5 sm:flex-row sm:items-center sm:p-7"><div><span className="inline-flex items-center gap-2 text-sm font-bold text-emerald-200"><Check size={16}/> تم التحقق من وصول الكتابة للمستودع</span><h1 className="mt-2 text-2xl font-black sm:text-3xl">مرحبًا {admin.login}</h1><p className="mt-2 text-sm text-slate-400">تعديلاتك تُحفظ كـ commit على GitHub ثم ينشرها Actions إلى الموقع.</p></div><button onClick={saveAll} disabled={loading || uploading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 font-black text-slate-950 hover:bg-emerald-300 disabled:opacity-60"><Save size={18}/>{loading ? 'جارٍ الحفظ…' : 'حفظ ونشر التعديلات'}</button></div>
 

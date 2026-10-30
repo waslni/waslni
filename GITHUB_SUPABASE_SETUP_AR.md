@@ -36,7 +36,17 @@ update public.profiles set role = 'manager' where id = 'UUID-المدير';
 
 ## 3. نشر Edge Functions وإعداد Telegram
 
-توجد ثلاث دوال في `supabase/functions/`: `manage-staff` و`manage-order-deletion` و`telegram-notifications`. يمكن نشرها من مجلد المشروع بعد تثبيت Supabase CLI:
+توجد دوال التطبيق في `supabase/functions/`، ومنها `admin-telegram-login` للتحقق بخطوتين للمدير. لتفعيل دخول لوحة المدير برمز Telegram، شغّل migration الجديد في SQL Editor، ثم انشر الدالة:
+
+`supabase/migrations/20261030120000_admin_telegram_login.sql`
+
+```bash
+npx supabase functions deploy admin-telegram-login
+```
+
+تتحقق الدالة أولًا من أن رمز GitHub يملك صلاحية الكتابة في مستودع وصلني، ثم ترسل رمزًا صالحًا لخمس دقائق. يُسمح بمحاولتين للتحقق، ويمنع الخادم طلب رمز آخر لمدة دقيقة.
+
+لنشر بقية الدوال من مجلد المشروع:
 
 ```bash
 npx supabase login
@@ -50,6 +60,8 @@ Supabase يوفّر عنوان المشروع ومفاتيح API للدوال. �
 
 - `TELEGRAM_BOT_TOKEN`: رمز البوت الجديد بعد تدويره.
 - `TELEGRAM_CHAT_ID`: رقم المحادثة التي تستقبل التنبيهات.
+
+تأكد من ضبط المتغيرين `VITE_SUPABASE_URL` و`VITE_SUPABASE_PUBLISHABLE_KEY` في **GitHub → Settings → Secrets and variables → Actions → Variables**؛ يستخدمهما بناء GitHub Pages للوصول إلى Edge Function. مفتاح النشر العام فقط، ولا تضع المفتاح السري في GitHub أو الواجهة.
 
 لا تضف `SUPABASE_SECRET_KEY` إلى GitHub Actions Variables أو إلى ملفات `VITE_*`. ولا تضع رمز Telegram في مستودع GitHub.
 
