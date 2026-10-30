@@ -63,7 +63,7 @@ export default function App() {
             <span><b className="block text-lg">{siteContent.brand.name}</b><small className="text-xs text-slate-400">{siteContent.brand.slogan}</small></span>
           </a>
           <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-            <a className="hover:text-white" href="#packages">الباقات</a><a className="hover:text-white" href="#works">معرض الأعمال</a><a className="hover:text-white" href="#steps">طريقة الطلب</a>
+            <a className="hover:text-white" href="#about">عن وصلني</a><a className="hover:text-white" href="#packages">الباقات</a><a className="hover:text-white" href="#works">معرض الأعمال</a><a className="hover:text-white" href="#steps">طريقة الطلب</a>
           </nav>
           <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-3 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-400"><MessageCircle size={17}/> تواصل</a>
         </div>
@@ -75,7 +75,7 @@ export default function App() {
           <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-20 sm:px-6 md:grid-cols-[1.2fr_.8fr] md:py-28">
             <div>
               <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-400/10 px-3 py-1.5 text-xs font-semibold text-indigo-200"><Sparkles size={14}/> محتوى وإعلانات لمشروعك</span>
-              <h1 className="max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-6xl">خلّ حضور محلك <span className="bg-gradient-to-l from-cyan-300 via-indigo-300 to-fuchsia-300 bg-clip-text text-transparent">يستحق الانتباه</span></h1>
+              <h1 className="max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-6xl">نرتقي بهويتك الإعلانية، <span className="bg-gradient-to-l from-cyan-300 via-indigo-300 to-fuchsia-300 bg-clip-text text-transparent">ونصنع لمتجرك حضورًا يليق به.</span></h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">{siteContent.brand.description} اختر الخدمة المناسبة، أرسل طلبك للموظف عبر واتساب، واتفق معه على التفاصيل.</p>
               <div className="mt-8 flex flex-wrap gap-3"><a href="#packages" className="inline-flex items-center gap-2 rounded-2xl bg-indigo-500 px-6 py-3.5 font-bold text-white shadow-xl shadow-indigo-950 hover:bg-indigo-400">استعرض الباقات <ArrowDown size={18}/></a><a href="#works" className="rounded-2xl border border-white/15 px-6 py-3.5 font-bold text-slate-200 hover:bg-white/5">شاهد أعمالنا</a></div>
               <div className="mt-9 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-400"><span>✓ أسعار واضحة</span><span>✓ تواصل مباشر</span><span>✓ بدون إنشاء حساب</span></div>
@@ -87,6 +87,18 @@ export default function App() {
                 {[['01','اختر الباقة','استعرض الخدمة والسعر'],['02','أرسل التفاصيل','املأ بيانات مشروعك باختصار'],['03','تواصل واتفق','أرسلها للموظف عبر واتساب']].map(([n,title,desc])=><div key={n} className="flex gap-4 border-b border-white/5 py-4 last:border-0"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-500/15 font-mono text-sm font-black text-indigo-300">{n}</span><div><b>{title}</b><p className="mt-1 text-sm text-slate-400">{desc}</p></div></div>)}
               </div>
             </div>
+          </div>
+        </section>
+
+        <section id="about" className="relative overflow-hidden border-b border-white/5 bg-slate-900/25 py-16 sm:py-20">
+          <div className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-cyan-500/10 blur-[100px]"/>
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
+            <div className="mx-auto mb-10 max-w-3xl text-center"><span className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/5 px-3 py-1.5 text-xs font-bold text-cyan-200"><Sparkles size={14}/> وصلني الرقمي | Waslni</span><h2 className="mt-4 text-3xl font-black leading-tight sm:text-4xl">حلول متكاملة لحضور رقمي أقوى</h2><p className="mt-4 text-base leading-8 text-slate-300 sm:text-lg">{siteContent.brand.description}</p></div>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <article className="rounded-3xl border border-indigo-300/15 bg-gradient-to-br from-indigo-950/45 to-slate-900/80 p-6 sm:p-8"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-200"><Image size={23}/></span><h3 className="mt-5 text-xl font-black">صناعة المحتوى والهوية</h3><p className="mt-3 leading-8 text-slate-300">{siteContent.about.creativeServices}</p></article>
+              <article className="rounded-3xl border border-cyan-300/15 bg-gradient-to-br from-cyan-950/35 to-slate-900/80 p-6 sm:p-8"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-400/10 text-cyan-200"><MessageCircle size={23}/></span><h3 className="mt-5 text-xl font-black">إدارة حسابات التواصل</h3><p className="mt-3 leading-8 text-slate-300">{siteContent.about.accountManagement}</p></article>
+            </div>
+            <div className="mt-5 rounded-3xl border border-white/10 bg-slate-900/70 p-6 sm:p-8"><p className="text-lg font-bold leading-8 text-white">{siteContent.about.goal}</p><p className="mt-2 leading-7 text-slate-400">{siteContent.about.flexibleServices}</p><div className="mt-6 border-t border-white/10 pt-5 text-center text-xl font-black text-transparent bg-gradient-to-l from-cyan-300 via-indigo-300 to-fuchsia-300 bg-clip-text sm:text-2xl">{siteContent.about.closing}</div></div>
           </div>
         </section>
 
