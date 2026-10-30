@@ -16,7 +16,10 @@ function headers(token, json = false) {
 async function readResponse(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.message || `تعذر إكمال العملية في GitHub (${response.status}).`);
+    const message = /resource not accessible by personal access token/i.test(data.message || '')
+      ? 'رفض GitHub العملية لأن رمز الوصول لا يملك صلاحية Contents: Read and write لمستودع waslni/waslni. أنشئ رمزًا جديدًا بهذه الصلاحية، ثم سجّل الخروج من لوحة المدير وادخل بالرمز الجديد.'
+      : data.message || `تعذر إكمال العملية في GitHub (${response.status}).`;
+    const error = new Error(message);
     error.status = response.status;
     throw error;
   }
