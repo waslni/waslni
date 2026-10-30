@@ -18,7 +18,11 @@ async function readResponse(response) {
   if (!response.ok) {
     const message = /resource not accessible by personal access token/i.test(data.message || '')
       ? 'رفض GitHub العملية لأن رمز الوصول لا يملك صلاحية Contents: Read and write لمستودع waslni/waslni. أنشئ رمزًا جديدًا بهذه الصلاحية، ثم سجّل الخروج من لوحة المدير وادخل بالرمز الجديد.'
-      : data.message || `تعذر إكمال العملية في GitHub (${response.status}).`;
+      : response.status === 404
+        ? 'لم يُعثر على الملف أو المجلد في مستودع GitHub. حدّث لوحة المدير وحاول مجددًا.'
+        : response.status === 409 || response.status === 422
+          ? 'رفض GitHub حفظ الملف بسبب تعارض في المستودع أو اسم الملف. حدّث لوحة المدير وأعد المحاولة.'
+          : data.message || `تعذر إكمال العملية في GitHub (${response.status}).`;
     const error = new Error(message);
     error.status = response.status;
     throw error;
@@ -80,9 +84,14 @@ export async function saveRepositoryJson(path, value, token, sha, message) {
 }
 
 export async function uploadRepositoryMedia(file, token) {
-  const safeName = file.name.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-100);
-  if (!safeName) throw new Error('اسم الملف غير صالح. أعد تسمية الملف باللغة الإنجليزية أو الأرقام.');
-  const path = `public/media/${Date.now()}-${safeName}`;
+  const originalName = file.name.normalize('NFKD');
+  const extension = originalName.match(/\.[a-z0-9]{1,8}$/i)?.[0]?.toLowerCase()
+    || ({ 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif', 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' }[file.type] || '');
+  const nameWithoutExtension = extension ? originalName.slice(0, -extension.length) : originalName;
+  const baseName = nameWithoutExtension
+    .replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-80);
+  const safeName = `${baseName || 'media'}${extension}`;
+  const path = `public/media/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${safeName}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const payload = {
     message: `Add media ${safeName}`,
