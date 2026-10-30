@@ -78,6 +78,15 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793337401017",
+      "category": "ورود وهدايا",
+      "title": "تصميم عصري لباقة ورد",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793337396197-32v73-AQOkVP_SkzK_gnV6xYkIh0zM8hRJ3T3TtvyGtyfQlqtjB6tr1Nf2VjLx0HOvGkP.mp4",
+      "image": ""
+    },
+    {
       "id": "p1",
       "category": "عطور وبخور",
       "title": "إعلان تدشين عطر سلطان العود",
