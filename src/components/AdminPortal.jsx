@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, CloudUpload, ExternalLink, FileImage, FileVideo, LogOut, Package, Save, ShieldCheck, Store, Trash2 } from 'lucide-react';
 import initialContent from '../data/siteContent.json';
 import { githubAdminSession, getRepositoryJson, listRepositoryMedia, saveRepositoryJson, uploadRepositoryMedia, verifyGithubAdminToken } from '../services/githubContentService';
@@ -6,6 +6,12 @@ import { adminTelegramLogin } from '../services/adminTelegramLogin';
 
 const CONTENT_PATH = 'src/data/siteContent.json';
 const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+
+function mediaKind(file) {
+  if (file?.type?.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || '')) return 'video';
+  if (file?.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(file?.name || '')) return 'image';
+  return '';
+}
 
 function Field({ label, value, onChange, type = 'text', ...props }) {
   return <label className="block text-sm font-bold text-slate-200">{label}<input {...props} type={type} value={value ?? ''} onChange={event => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-3 text-sm font-normal text-white outline-none transition focus:border-indigo-400"/></label>;
@@ -30,6 +36,7 @@ export default function AdminPortal({ onBack }) {
   const [localPreviewType, setLocalPreviewType] = useState('');
   const [localFileName, setLocalFileName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const selectedFileRef = useRef(null);
   const [draftWork, setDraftWork] = useState({ title: '', category: initialContent.portfolio[0]?.category || '', type: 'تصميم إعلاني', filePath: '', poster: '' });
   const [isNewCategory, setIsNewCategory] = useState(false);
   const [categorySelection, setCategorySelection] = useState(initialContent.portfolio[0]?.category || '');
@@ -115,7 +122,7 @@ export default function AdminPortal({ onBack }) {
   const selectedCategoryForWork = (isNewCategory ? draftWork.category : categorySelection).trim();
   const selectedRepositoryMedia = media.find(item => item.path === draftWork.filePath);
   const previewSource = localPreview || selectedRepositoryMedia?.downloadUrl || '';
-  const previewIsVideo = localPreview ? localPreviewType === 'video' : /\.(mp4|webm|mov)$/i.test(selectedRepositoryMedia?.name || '');
+  const previewIsVideo = localPreview ? localPreviewType === 'video' : /\.(mp4|webm|mov|m4v)$/i.test(selectedRepositoryMedia?.name || '');
   const updatePackage = (key, value) => {
     if (!selectedPackage) return;
     const nextPackage = { ...selectedPackage, [key]: key === 'price' ? (value === '' ? '' : Number(value)) : value };
@@ -126,35 +133,43 @@ export default function AdminPortal({ onBack }) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) { setError('اختر صورة أو مقطع فيديو.'); return; }
-    if (file.size > MAX_UPLOAD_SIZE) { setError('حجم الملف أكبر من 50 ميجابايت. ضغط الفيديو أو الصورة ثم أعد المحاولة.'); return; }
     if (localPreview) URL.revokeObjectURL(localPreview);
+    selectedFileRef.current = null;
+    setSelectedFile(null);
+    setDraftWork(current => ({ ...current, filePath: '' }));
+    const kind = mediaKind(file);
+    if (!kind) { setLocalPreview(''); setLocalPreviewType(''); setLocalFileName(''); setError('صيغة الملف غير مدعومة. اختر JPG أو PNG أو WebP أو GIF أو MP4 أو WebM أو MOV.'); setStatus(''); return; }
     setLocalPreview(URL.createObjectURL(file));
-    setLocalPreviewType(file.type.startsWith('video/') ? 'video' : 'image');
+    setLocalPreviewType(kind);
     setLocalFileName(file.name);
+    selectedFileRef.current = file;
     setSelectedFile(file);
-    setDraftWork(current => ({ ...current, filePath: '', type: file.type.startsWith('video/') ? 'فيديو قصير' : 'تصميم إعلاني' }));
+    setDraftWork(current => ({ ...current, filePath: '', type: kind === 'video' ? 'فيديو قصير' : 'تصميم إعلاني' }));
+    if (file.size > MAX_UPLOAD_SIZE) { setError('حجم الملف أكبر من 50 ميجابايت. اختر نسخة أصغر أو اضغط الفيديو، ثم أعد المحاولة.'); setStatus(`تم اختيار «${file.name}» لكن حجمه يتجاوز الحد.`); return; }
     setError(''); setStatus(`تم اختيار «${file.name}». أكمل بيانات العمل وحدد القسم، ثم اضغط «رفع العمل ونشره».`);
   };
 
   const publishWork = async () => {
     if (!draftWork.title.trim()) { setError('اكتب عنوان العمل أولًا.'); return; }
     if (!selectedCategoryForWork) { setError('اختر قسمًا من القائمة أو أدخل اسم قسم جديد.'); return; }
-    if (!selectedFile && !draftWork.filePath) { setError('اختر ملفًا من جهازك أو حدد ملفًا مرفوعًا سابقًا.'); return; }
+    const fileToUpload = selectedFileRef.current || selectedFile;
+    if (!fileToUpload && !draftWork.filePath) { setError('لم يستلم المركز ملفًا من جهازك بعد. اضغط اختيار الملف وانتظر ظهور اسمه ومعاينته، أو اختر ملفًا من المكتبة.'); return; }
+    if (fileToUpload && fileToUpload.size > MAX_UPLOAD_SIZE) { setError('حجم الملف أكبر من 50 ميجابايت. اختر نسخة أصغر أو اضغط الفيديو.'); return; }
     setError(''); setStatus(''); setLoading(true);
     let uploadedPath = '';
     try {
       let mediaPath = draftWork.filePath;
-      if (selectedFile) {
+      if (fileToUpload) {
         setUploading(true);
-        setStatus(`جارٍ رفع «${selectedFile.name}» إلى الموقع…`);
-        mediaPath = await uploadRepositoryMedia(selectedFile, token);
+        setStatus(`جارٍ رفع «${fileToUpload.name}» إلى الموقع…`);
+        mediaPath = await uploadRepositoryMedia(fileToUpload, token);
         uploadedPath = mediaPath;
         setDraftWork(current => ({ ...current, filePath: mediaPath }));
+        selectedFileRef.current = null;
         setSelectedFile(null);
         try { setMedia(await listRepositoryMedia(token)); } catch { /* Asset upload already succeeded; publishing can continue. */ }
       }
-      const video = selectedFile ? selectedFile.type.startsWith('video/') : /\.(mp4|webm|mov)$/i.test(mediaPath);
+      const video = fileToUpload ? mediaKind(fileToUpload) === 'video' : /\.(mp4|webm|mov|m4v)$/i.test(mediaPath);
       const work = {
         id: `work_${Date.now()}`,
         category: selectedCategoryForWork,
@@ -207,12 +222,12 @@ export default function AdminPortal({ onBack }) {
         {activeTab === 'packages' && <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-7"><div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h2 className="text-xl font-black">تعديل الباقات</h2><p className="mt-1 text-sm text-slate-400">غيّر السعر والوصف والمزايا، ثم اضغط حفظ ونشر.</p></div><select value={selectedPackageId} onChange={event=>setSelectedPackageId(event.target.value)} className="rounded-xl border border-white/10 bg-slate-950 px-3 py-3 text-sm text-white">{content.packages.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
           {selectedPackage && <div className="grid gap-5 sm:grid-cols-2"><Field label="اسم الباقة" value={selectedPackage.name} onChange={value=>updatePackage('name',value)}/><Field label="السعر بالريال" type="number" min="0" value={selectedPackage.price} onChange={value=>updatePackage('price',value)}/><Field label="وصف مختصر" value={selectedPackage.subtitle} onChange={value=>updatePackage('subtitle',value)}/><Field label="فترة/وحدة السعر" value={selectedPackage.period} onChange={value=>updatePackage('period',value)}/><Field label="الشارة" value={selectedPackage.badge} onChange={value=>updatePackage('badge',value)}/><label className="block text-sm font-bold sm:col-span-2">المزايا (ميزة واحدة في كل سطر)<textarea rows={6} value={selectedPackage.features.join('\n')} onChange={event=>updatePackage('features',event.target.value.split('\n'))} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-sm font-normal text-white outline-none focus:border-indigo-400"/></label><Field label="تنويه أو شروط" value={selectedPackage.terms} onChange={value=>updatePackage('terms',value)}/></div>}</section>}
 
-        {activeTab === 'works' && <div className="space-y-6"><section className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-7"><h2 className="text-xl font-black">مركز رفع الأعمال</h2><p className="mt-2 text-sm leading-6 text-slate-400">اختر صورة أو مقطعًا من جهازك، اكتب بياناته وحدد القسم، ثم اضغط «رفع العمل ونشره في الموقع» لإتمام العملية بخطوة واحدة. الحد الأقصى 50 ميجابايت.</p><p className="mt-2 rounded-xl bg-amber-400/5 p-3 text-xs leading-6 text-amber-100/80">يتطلب الرفع رمز GitHub بصلاحية Contents: Read and write لمستودع waslni/waslni. عند تغيير الرمز، سجّل الخروج ثم ادخل بالرمز الجديد.</p><label className="relative mt-5 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300/30 bg-indigo-400/5 p-5 text-center hover:bg-indigo-400/10"><input aria-label="اختر صورة أو مقطعًا من جهازك" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" onChange={uploadMedia} disabled={uploading || loading} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"/>{uploading?<span className="animate-pulse text-indigo-200">جارٍ رفع الملف إلى الموقع…</span>:<><CloudUpload size={28} className="text-indigo-300"/><b>{selectedFile ? `تم اختيار: ${selectedFile.name}` : draftWork.filePath ? `تم تحديد ملف: ${selectedRepositoryMedia?.name || draftWork.filePath}` : 'اضغط لاختيار صورة أو فيديو من جهازك'}</b><small className="text-slate-500">JPG · PNG · WebP · MP4 · WebM</small></>}</label>
+        {activeTab === 'works' && <div className="space-y-6"><section className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-7"><h2 className="text-xl font-black">مركز رفع الأعمال</h2><p className="mt-2 text-sm leading-6 text-slate-400">اختر صورة أو مقطعًا من جهازك، اكتب بياناته وحدد القسم، ثم اضغط «رفع العمل ونشره في الموقع» لإتمام العملية بخطوة واحدة. الحد الأقصى 50 ميجابايت.</p><p className="mt-2 rounded-xl bg-amber-400/5 p-3 text-xs leading-6 text-amber-100/80">يتطلب الرفع رمز GitHub بصلاحية Contents: Read and write لمستودع waslni/waslni. عند تغيير الرمز، سجّل الخروج ثم ادخل بالرمز الجديد.</p><label className="relative mt-5 flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-indigo-300/30 bg-indigo-400/5 p-5 text-center hover:bg-indigo-400/10"><input aria-label="اختر صورة أو مقطعًا من جهازك" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,video/x-m4v" onChange={uploadMedia} disabled={uploading || loading} className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"/>{uploading?<span className="animate-pulse text-indigo-200">جارٍ رفع الملف إلى الموقع…</span>:<><CloudUpload size={28} className="text-indigo-300"/><b>{selectedFile ? `تم اختيار: ${selectedFile.name}` : draftWork.filePath ? `تم تحديد ملف: ${selectedRepositoryMedia?.name || draftWork.filePath}` : 'اضغط لاختيار صورة أو فيديو من جهازك'}</b><small className="text-slate-500">JPG · PNG · WebP · MP4 · WebM · MOV</small></>}</label>
           {previewSource && <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/60"><div className="flex items-center justify-between gap-3 p-3"><b className="truncate text-sm">{localPreview ? localFileName : selectedRepositoryMedia?.name}</b><span className={`shrink-0 text-xs ${uploading?'text-amber-200':'text-emerald-300'}`}>{uploading?'جارٍ الرفع…':draftWork.filePath?'محدد من الملفات المرفوعة':'الملف محدد على جهازك'}</span></div>{previewIsVideo?<video src={previewSource} controls playsInline preload="metadata" className="max-h-72 w-full bg-black object-contain"/>:<img src={previewSource} alt="معاينة الملف المحدد" className="max-h-72 w-full object-contain"/>}</div>}
           <div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="عنوان العمل" value={draftWork.title} onChange={value=>setDraftWork(current=>({...current,title:value}))}/><Field label="نوع العمل" value={draftWork.type} onChange={value=>setDraftWork(current=>({...current,type:value}))}/><label className="block text-sm font-bold text-slate-200">قسم المعرض<select value={isNewCategory?'__new__':categorySelection} onChange={event=>{const value=event.target.value;if(value==='__new__'){setIsNewCategory(true);setDraftWork(current=>({...current,category:''}));}else{setIsNewCategory(false);setCategorySelection(value);}}} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-3 text-sm font-normal text-white outline-none focus:border-indigo-400"><option value="" disabled>اختر القسم الذي سيظهر فيه العمل</option>{portfolioCategories.map(category=><option key={category} value={category}>{category}</option>)}<option value="__new__">＋ إضافة قسم جديد</option></select></label>{isNewCategory&&<Field label="اسم القسم الجديد" value={draftWork.category} onChange={value=>setDraftWork(current=>({...current,category:value}))}/>}{draftWork.filePath && /\.(mp4|webm|mov)$/i.test(draftWork.filePath) && <Field label="مسار صورة الغلاف (اختياري)" value={draftWork.poster} onChange={value=>setDraftWork(current=>({...current,poster:value}))}/>}</div>
           {media.length===0 && <p className="mt-5 rounded-xl border border-white/5 bg-black/20 p-4 text-sm text-slate-500">لا توجد ملفات سابقة بعد. ارفع صورة أو مقطعًا وسيظهر هنا لاختياره لاحقًا.</p>}
-          {media.length>0 && <div className="mt-5"><h3 className="mb-3 text-sm font-bold">الملفات المرفوعة إلى المعرض — اضغط لاختيار ملف</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{media.map(item=>{const isVideo=/\.(mp4|webm|mov)$/i.test(item.name);const isSelected=draftWork.filePath===item.path;return <button type="button" key={item.path} onClick={()=>{setDraftWork(current=>({...current,filePath:item.path,type:isVideo?'فيديو قصير':'تصميم إعلاني'}));setSelectedFile(null);if(localPreview)URL.revokeObjectURL(localPreview);setLocalPreview('');setLocalPreviewType('');setLocalFileName('');}} className={`overflow-hidden rounded-2xl border text-right transition ${isSelected?'border-indigo-300 bg-indigo-400/10 ring-2 ring-indigo-400/30':'border-white/10 bg-slate-950/50 hover:border-indigo-300/50'}`}><span className="grid aspect-video place-items-center overflow-hidden bg-slate-900">{isVideo?<span className="flex items-center gap-2 text-indigo-200"><FileVideo size={22}/>مقطع فيديو</span>:<img loading="lazy" src={item.downloadUrl} alt={item.name} className="h-full w-full object-cover"/>}</span><span className="block truncate px-3 py-2 text-xs">{item.name}</span><span className={`block px-3 pb-2 text-[11px] ${isSelected?'text-indigo-200':'text-slate-500'}`}>{isSelected?'محدد للاستخدام':'اختيار الملف'}</span></button>})}</div></div>}
-          <button onClick={publishWork} disabled={loading || uploading} className="mt-5 w-full rounded-xl bg-indigo-500 px-4 py-3 font-black hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60">{uploading ? 'جارٍ رفع الملف…' : loading ? 'جارٍ النشر…' : 'رفع العمل ونشره في الموقع'}</button></section>
+          {media.length>0 && <div className="mt-5"><h3 className="mb-3 text-sm font-bold">الملفات المرفوعة إلى المعرض — اضغط لاختيار ملف</h3><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{media.map(item=>{const isVideo=/\.(mp4|webm|mov|m4v)$/i.test(item.name);const isSelected=draftWork.filePath===item.path;return <button type="button" key={item.path} onClick={()=>{setDraftWork(current=>({...current,filePath:item.path,type:isVideo?'فيديو قصير':'تصميم إعلاني'}));selectedFileRef.current=null;setSelectedFile(null);if(localPreview)URL.revokeObjectURL(localPreview);setLocalPreview('');setLocalPreviewType('');setLocalFileName('');}} className={`overflow-hidden rounded-2xl border text-right transition ${isSelected?'border-indigo-300 bg-indigo-400/10 ring-2 ring-indigo-400/30':'border-white/10 bg-slate-950/50 hover:border-indigo-300/50'}`}><span className="grid aspect-video place-items-center overflow-hidden bg-slate-900">{isVideo?<span className="flex items-center gap-2 text-indigo-200"><FileVideo size={22}/>مقطع فيديو</span>:<img loading="lazy" src={item.downloadUrl} alt={item.name} className="h-full w-full object-cover"/>}</span><span className="block truncate px-3 py-2 text-xs">{item.name}</span><span className={`block px-3 pb-2 text-[11px] ${isSelected?'text-indigo-200':'text-slate-500'}`}>{isSelected?'محدد للاستخدام':'اختيار الملف'}</span></button>})}</div></div>}
+          <button onClick={publishWork} disabled={loading || uploading || (!selectedFile && !draftWork.filePath) || (selectedFile && selectedFile.size > MAX_UPLOAD_SIZE)} className="mt-5 w-full rounded-xl bg-indigo-500 px-4 py-3 font-black hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60">{uploading ? 'جارٍ رفع الملف…' : loading ? 'جارٍ النشر…' : 'رفع العمل ونشره في الموقع'}</button></section>
           <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 sm:p-7"><h2 className="mb-4 text-xl font-black">الأعمال المعروضة ({content.portfolio.length})</h2><div className="grid gap-3 sm:grid-cols-2">{content.portfolio.map(item=><article key={item.id} className="flex items-center gap-3 rounded-2xl border border-white/5 bg-slate-950/50 p-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-800 text-indigo-300">{item.mediaType==='video'?<FileVideo size={19}/>:<FileImage size={19}/>}</span><div className="min-w-0 flex-1"><b className="block truncate text-sm">{item.title}</b><small className="text-slate-500">{item.category} · {item.type}</small></div><button onClick={()=>removeWork(item.id)} className="rounded-lg p-2 text-rose-300 hover:bg-rose-400/10" title="إزالة من المعرض"><Trash2 size={17}/></button></article>)}</div></section></div>}
       </>}
     </main>
