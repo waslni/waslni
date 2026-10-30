@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUpRight, Check, CheckCircle2, Clipboard, Image, MessageCircle, Package, ShieldCheck, Sparkles, Video, X } from 'lucide-react';
 import siteContent from './data/siteContent.json';
+import AdminPortal from './components/AdminPortal';
 
-const GITHUB_REPO = 'https://github.com/waslni/waslni';
 const basePath = import.meta.env.BASE_URL;
 const whatsappNumber = String(siteContent.brand.whatsappNumber || '').replace(/\D/g, '');
 const currentYear = new Date().getFullYear();
@@ -18,6 +18,7 @@ function makeOrderNumber() {
 }
 
 export default function App() {
+  const [adminRoute, setAdminRoute] = useState(() => window.location.hash === '#admin');
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [order, setOrder] = useState(null);
   const [form, setForm] = useState({ name: '', store: '', phone: '', details: '' });
@@ -25,6 +26,14 @@ export default function App() {
   const categories = useMemo(() => ['الكل', ...new Set(siteContent.portfolio.map(item => item.category))], []);
   const [category, setCategory] = useState('الكل');
   const works = category === 'الكل' ? siteContent.portfolio : siteContent.portfolio.filter(item => item.category === category);
+
+  useEffect(() => {
+    const syncRoute = () => setAdminRoute(window.location.hash === '#admin');
+    window.addEventListener('hashchange', syncRoute);
+    return () => window.removeEventListener('hashchange', syncRoute);
+  }, []);
+
+  if (adminRoute) return <AdminPortal onBack={() => { window.location.hash = 'top'; setAdminRoute(false); }}/>
 
   const createOrder = (event) => {
     event.preventDefault();
@@ -106,7 +115,7 @@ export default function App() {
       </main>
 
       <footer className="border-t border-white/10 bg-[#060a12]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-8 sm:px-6 md:flex-row md:items-center md:justify-between"><div><b className="text-lg">{siteContent.brand.name} | Waslni</b><p className="mt-1 text-sm text-slate-500">{siteContent.brand.slogan}</p></div><a href={`${GITHUB_REPO}/edit/main/src/data/siteContent.json`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"><Image size={16}/> إدارة المحتوى عبر GitHub <ArrowUpRight size={14}/></a><span className="text-xs text-slate-600">© {currentYear} وصلني</span></div>
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-8 sm:px-6 md:flex-row md:items-center md:justify-between"><div><b className="text-lg">{siteContent.brand.name} | Waslni</b><p className="mt-1 text-sm text-slate-500">{siteContent.brand.slogan}</p></div><a href="#admin" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white"><Image size={16}/> دخول المدير <ArrowUpRight size={14}/></a><span className="text-xs text-slate-600">© {currentYear} وصلني</span></div>
       </footer>
 
       {selectedPackage && <div className="fixed inset-0 z-50 grid place-items-end bg-black/75 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) { setSelectedPackage(null); setOrder(null); } }}>
