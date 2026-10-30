@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUpRight, Check, Image, MessageCircle, Package, ShieldCheck, Sparkles, Video, X } from 'lucide-react';
 import siteContent from './data/siteContent.json';
 import AdminPortal from './components/AdminPortal';
@@ -10,6 +10,49 @@ const currentYear = new Date().getFullYear();
 function mediaUrl(path) {
   if (!path) return '';
   return /^https?:\/\//i.test(path) ? path : `${basePath}${path.replace(/^\//, '')}`;
+}
+
+function PortfolioVideo({ item }) {
+  const videoRef = useRef(null);
+  const [generatedPoster, setGeneratedPoster] = useState('');
+  const src = mediaUrl(item.video || (item.image?.endsWith('.mp4') ? item.image : ''));
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || item.poster || !src) return undefined;
+    let active = true;
+    const createPreview = () => {
+      if (!active || !video.videoWidth || !video.videoHeight) return;
+      const canvas = document.createElement('canvas');
+      const width = Math.min(video.videoWidth, 720);
+      const height = Math.round(video.videoHeight * width / video.videoWidth);
+      canvas.width = width;
+      canvas.height = height;
+      try {
+        canvas.getContext('2d')?.drawImage(video, 0, 0, width, height);
+        const preview = canvas.toDataURL('image/jpeg', 0.78);
+        if (active) setGeneratedPoster(preview);
+      } catch {
+        // Cross-origin media may not allow a canvas preview; playback remains available.
+      }
+    };
+    const seekToPreview = () => {
+      if (!active || !Number.isFinite(video.duration) || video.duration <= 0 || !video.paused) return;
+      video.currentTime = Math.min(0.15, video.duration / 2);
+    };
+    video.addEventListener('loadedmetadata', seekToPreview, { once: true });
+    video.addEventListener('seeked', createPreview, { once: true });
+    video.addEventListener('loadeddata', createPreview, { once: true });
+    if (video.readyState >= 1) seekToPreview();
+    return () => {
+      active = false;
+      video.removeEventListener('loadedmetadata', seekToPreview);
+      video.removeEventListener('seeked', createPreview);
+      video.removeEventListener('loadeddata', createPreview);
+    };
+  }, [item.poster, src]);
+
+  return <video ref={videoRef} controls playsInline preload="metadata" poster={item.poster ? mediaUrl(item.poster) : generatedPoster || undefined} className="h-full w-full object-cover" src={src}/>;
 }
 
 function makeOrderNumber() {
@@ -118,7 +161,7 @@ export default function App() {
         <section id="works" className="border-y border-white/5 bg-slate-900/30 py-16 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6"><div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><span className="text-sm font-bold text-cyan-300">معرض الأعمال</span><h2 className="mt-2 text-3xl font-black">نماذج من تنفيذنا</h2><p className="mt-2 text-sm text-slate-400">تصاميم ومقاطع تسويقية صنعت لتبرز العلامات التجارية.</p></div></div>
             <div className="mb-6 flex gap-2 overflow-x-auto pb-2">{categories.map(item => <button key={item} onClick={() => setCategory(item)} className={`shrink-0 rounded-full border px-4 py-2 text-sm ${category === item ? 'border-indigo-400 bg-indigo-500 text-white' : 'border-white/10 bg-slate-900 text-slate-300'}`}>{item}</button>)}</div>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">{works.map(item => <article key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-lg shadow-black/10"><div className={`relative bg-slate-800 ${item.mediaType === 'video' ? 'aspect-[3/4]' : 'aspect-[4/3]'}`}>{item.mediaType === 'video' ? <video controls playsInline preload="metadata" poster={mediaUrl(item.poster || item.image)} className="h-full w-full object-cover" src={mediaUrl(item.video || (item.image?.endsWith('.mp4') ? item.image : ''))}/>:<img loading="lazy" src={mediaUrl(item.image)} alt={item.title} className="h-full w-full object-cover"/>}{item.mediaType === 'video' && <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white"><Video size={14}/></span>}</div><div className="p-3 sm:p-4"><span className="block truncate text-[10px] font-bold text-indigo-300 sm:text-xs">{item.category} · {item.type}</span><h3 className="mt-1 line-clamp-2 text-sm font-bold leading-6 sm:text-base">{item.title}</h3></div></article>)}</div>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">{works.map(item => <article key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-lg shadow-black/10"><div className={`relative bg-slate-800 ${item.mediaType === 'video' ? 'aspect-[3/4]' : 'aspect-[4/3]'}`}>{item.mediaType === 'video' ? <PortfolioVideo item={item}/>:<img loading="lazy" src={mediaUrl(item.image)} alt={item.title} className="h-full w-full object-cover"/>}{item.mediaType === 'video' && <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/70 p-1.5 text-white"><Video size={14}/></span>}</div><div className="p-3 sm:p-4"><span className="block truncate text-[10px] font-bold text-indigo-300 sm:text-xs">{item.category} · {item.type}</span><h3 className="mt-1 line-clamp-2 text-sm font-bold leading-6 sm:text-base">{item.title}</h3></div></article>)}</div>
           </div>
         </section>
 

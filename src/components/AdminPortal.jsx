@@ -13,6 +13,46 @@ function mediaKind(file) {
   return '';
 }
 
+function createVideoPosterFile(videoFile) {
+  return new Promise(resolve => {
+    const video = document.createElement('video');
+    const sourceUrl = URL.createObjectURL(videoFile);
+    let settled = false;
+    const cleanup = posterFile => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      URL.revokeObjectURL(sourceUrl);
+      resolve(posterFile);
+    };
+    const capture = () => {
+      if (!video.videoWidth || !video.videoHeight) return;
+      const canvas = document.createElement('canvas');
+      const width = Math.min(video.videoWidth, 720);
+      const height = Math.round(video.videoHeight * width / video.videoWidth);
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')?.drawImage(video, 0, 0, width, height);
+      canvas.toBlob(blob => cleanup(blob ? new File([blob], 'video-cover.jpg', { type: 'image/jpeg' }) : null), 'image/jpeg', 0.82);
+    };
+    const timeoutId = setTimeout(() => cleanup(null), 15000);
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.addEventListener('loadedmetadata', () => {
+      if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Math.min(0.15, video.duration / 2);
+    }, { once: true });
+    video.addEventListener('loadeddata', capture, { once: true });
+    video.addEventListener('seeked', capture, { once: true });
+    video.addEventListener('error', () => cleanup(null), { once: true });
+    video.src = sourceUrl;
+    video.load();
+  });
+}
+
 function Field({ label, value, onChange, type = 'text', ...props }) {
   return <label className="block text-sm font-bold text-slate-200">{label}<input {...props} type={type} value={value ?? ''} onChange={event => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3.5 py-3 text-sm font-normal text-white outline-none transition focus:border-indigo-400"/></label>;
 }
@@ -159,23 +199,33 @@ export default function AdminPortal({ onBack }) {
     let uploadedPath = '';
     try {
       let mediaPath = draftWork.filePath;
+      const video = fileToUpload ? mediaKind(fileToUpload) === 'video' : /\.(mp4|webm|mov|m4v)$/i.test(mediaPath);
+      let posterPath = draftWork.poster.trim();
       if (fileToUpload) {
+        if (video && !posterPath) {
+          setStatus('جارٍ تجهيز صورة معاينة للمقطع…');
+          const posterFile = await createVideoPosterFile(fileToUpload);
+          if (posterFile) {
+            setStatus('جارٍ رفع المقطع وصورة المعاينة…');
+            posterPath = await uploadRepositoryMedia(posterFile, token);
+          }
+        }
         setUploading(true);
         setStatus(`جارٍ رفع «${fileToUpload.name}» إلى الموقع…`);
         mediaPath = await uploadRepositoryMedia(fileToUpload, token);
         uploadedPath = mediaPath;
         setDraftWork(current => ({ ...current, filePath: mediaPath }));
+        if (posterPath) setDraftWork(current => ({ ...current, poster: posterPath }));
         selectedFileRef.current = null;
         setSelectedFile(null);
         try { setMedia(await listRepositoryMedia(token)); } catch { /* Asset upload already succeeded; publishing can continue. */ }
       }
-      const video = fileToUpload ? mediaKind(fileToUpload) === 'video' : /\.(mp4|webm|mov|m4v)$/i.test(mediaPath);
       const work = {
         id: `work_${Date.now()}`,
         category: selectedCategoryForWork,
         title: draftWork.title.trim(),
         type: draftWork.type.trim() || (video ? 'فيديو قصير' : 'تصميم إعلاني'),
-        ...(video ? { mediaType: 'video', video: mediaPath, image: '', ...(draftWork.poster ? { poster: draftWork.poster } : {}) } : { image: mediaPath })
+        ...(video ? { mediaType: 'video', video: mediaPath, image: '', ...(posterPath ? { poster: posterPath } : {}) } : { image: mediaPath })
       };
       const nextContent = { ...content, portfolio: [work, ...content.portfolio] };
       setUploading(false);
