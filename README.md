@@ -1,32 +1,30 @@
 # وصلني | Waslni
 
-منصة عربية لإدارة محتوى المتاجر والأنشطة التجارية، مع باقات وطلبات ولوحات للمدير والموظفين والعملاء.
+موقع ثابت لعرض خدمات وباقات «وصلني» وأمثلة الأعمال. لا توجد حسابات للعملاء ولا تحفظ الصفحة طلباتهم أو بياناتهم في قاعدة بيانات. يجهز الموقع ملخص الطلب ورقمه في متصفح العميل، ثم يفتح رسالة واتساب إلى رقم الموظف ليقوم العميل بإرسالها.
 
-## التقنيات
+## تعديل الموقع بحساب GitHub
 
-- React 19 وVite 8.
-- Supabase Auth وPostgres مع سياسات RLS.
-- Supabase Storage لملفات معرض الأعمال.
-- Supabase Edge Functions لإدارة الموظفين، رموز حذف الطلبات، وتنبيهات Telegram.
-- GitHub Pages لاستضافة الواجهة الثابتة.
+- الأسعار والنصوص ورقم الموظف وأمثلة المعرض موجودة في [src/data/siteContent.json](https://github.com/waslni/waslni/edit/main/src/data/siteContent.json).
+- الصور والمقاطع الجديدة ترفع إلى [public/media](https://github.com/waslni/waslni/tree/main/public/media).
+- بعد كل `Commit changes` يشغّل GitHub Actions البناء والنشر تلقائيًا إلى GitHub Pages.
+- الخطوات المصورة نصيًا موجودة في [دليل إدارة المحتوى عبر GitHub](CONTENT_MANAGEMENT_GITHUB_AR.md).
+
+صلاحية حساب GitHub على المستودع هي تسجيل دخول المدير لإدارة الموقع. زر إدارة المحتوى في تذييل الموقع يفتح محرر GitHub؛ من لا يملك صلاحية المستودع لا يستطيع حفظ أي تعديل.
 
 ## التطوير المحلي
 
-1. ثبّت Node.js 22.
-2. انسخ `.env.example` إلى `.env.local` وأضف رابط Supabase ومفتاح Publishable فقط.
-3. شغّل `npm install` ثم `npm run dev`.
+يتطلب Node.js 22.
 
-لا تضع مفتاح Supabase السري أو رمز Telegram في متغيرات `VITE_*` أو ملفات الواجهة.
+```bash
+npm ci
+npm run dev
+```
 
-## إعداد Supabase والنشر
+## أوامر المشروع
 
-اتبع الخطوات بالترتيب في [دليل إعداد Supabase وGitHub Pages](GITHUB_SUPABASE_SETUP_AR.md). يتضمن الدليل تشغيل migrations وseed وإنشاء المدير الأول ونشر Edge Functions وضبط أسرار Telegram.
+- `npm run dev`: تشغيل محلي.
+- `npm run build`: تجهيز نسخة النشر.
+- `npm run lint`: فحص lint.
+- `npm run preview`: معاينة البناء.
 
-مركز معرض الأعمال يرفع الوسائط إلى bucket باسم `waslni-portfolio`. إيصالات التحويل لا تُحفظ في التخزين أو قاعدة البيانات؛ تُرسل إلى Telegram، وتُحفظ في الطلب علامة الإرسال فقط.
-
-## الأوامر
-
-- `npm run dev` تشغيل خادم التطوير.
-- `npm run build` بناء نسخة النشر.
-- `npm run lint` فحص lint.
-- `npm run preview` معاينة نسخة البناء محليًا.
+مجلدات `supabase/` و`public/api.php` وملفات الخدمات القديمة باقية كمراجع من النسخة السابقة، لكن واجهة الموقع المنشورة لا تستوردها ولا تتصل بها.
