@@ -1338,6 +1338,15 @@ export const db = {
       db.setCurrentUser(user);
       return { success: true, requires2FA: false, user };
     } catch (error) {
+      const invalidCredentials = error?.status === 400 && (
+        error?.code === 'invalid_credentials'
+        || error?.code === 'invalid_grant'
+        || /invalid login credentials|invalid credentials/i.test(error?.message || '')
+      );
+      if (!invalidCredentials) {
+        db.resetFailedAttempts(cleanIdentifier);
+        return { success: false, message: error.message || 'تعذر إكمال التحقق من الخادم. حاول مجددًا بعد تحديث الموقع.' };
+      }
       const failResult = db.recordFailedAttempt(cleanIdentifier);
       return { success: false, ...failResult, message: error.message || 'بيانات الدخول غير صحيحة.' };
     }
