@@ -81,6 +81,16 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793424666452",
+      "category": "ورود وهدايا",
+      "title": "تصميم عصري لباقة ورد",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793424653664-f13xu-3425026141732382642.mp4",
+      "image": "",
+      "poster": "media/1793424650543-ou31y-video-cover.jpg"
+    },
+    {
       "id": "work_1793424581483",
       "category": "ورود وهدايا",
       "title": "تصميم عصري",
