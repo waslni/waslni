@@ -81,6 +81,16 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793424410740",
+      "category": "عطور وبخور",
+      "title": "تصميم عصري",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793424399214-u53hu-8953211652268648969.mp4",
+      "image": "",
+      "poster": "media/1793424396786-91bcz-video-cover.jpg"
+    },
+    {
       "id": "work_1793424367077",
       "category": "عطور وبخور",
       "title": "بكجنق وتصميم عصري",
