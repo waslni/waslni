@@ -81,6 +81,16 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793424581483",
+      "category": "ورود وهدايا",
+      "title": "تصميم عصري",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793424572892-a1ys4-8913591274456307598.mp4",
+      "image": "",
+      "poster": "media/1793424569847-x2mku-video-cover.jpg"
+    },
+    {
       "id": "work_1793424535198",
       "category": "عطور وبخور",
       "title": "تصميم عصري ورهيب",
