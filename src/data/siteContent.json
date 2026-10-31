@@ -81,6 +81,16 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793424507426",
+      "category": "عطور وبخور",
+      "title": "تصميم عصري",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793424491273-c1d2i-520330407610083517.mp4",
+      "image": "",
+      "poster": "media/1793424487336-0ks4v-video-cover.jpg"
+    },
+    {
       "id": "work_1793424410740",
       "category": "عطور وبخور",
       "title": "تصميم عصري",
