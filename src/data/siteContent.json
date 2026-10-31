@@ -81,6 +81,16 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793424325318",
+      "category": "عطور وبخور",
+      "title": "بكجنق عطور تصميم عصري",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793424316701-f64nw-2144704005573239187.mp4",
+      "image": "",
+      "poster": "media/1793424314040-8bslr-video-cover.jpg"
+    },
+    {
       "id": "work_1793424275122",
       "category": "ورود وهدايا",
       "title": "ورد تصميم عصري",
