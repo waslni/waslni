@@ -81,6 +81,16 @@
   ],
   "portfolio": [
     {
+      "id": "work_1793424275122",
+      "category": "ورود وهدايا",
+      "title": "ورد تصميم عصري",
+      "type": "فيديو قصير",
+      "mediaType": "video",
+      "video": "media/1793424270168-tglow-5858486706112661294.mp4",
+      "image": "",
+      "poster": "media/1793424266524-itj04-video-cover.jpg"
+    },
+    {
       "id": "work_1793424242725",
       "category": "ورود وهدايا",
       "title": "ورد",
